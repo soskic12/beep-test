@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Beep test">
+  <rect width="512" height="512" fill="#0f7b4f"/>
+  <g fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round">
+    <path d="M158 168v176"/>
+    <path d="M354 168v176"/>
+  </g>
+  <path d="M330 256l-78-45v90z" fill="#ffffff"/>
+  <g fill="#ffffff" opacity=".35">
+    <path d="M182 247h120v17H182z"/>
+  </g>
+  <text x="256" y="392" font-family="system-ui, Arial, sans-serif" font-size="52" font-weight="700"
+        fill="#ffffff" text-anchor="middle">20 m</text>
+</svg>

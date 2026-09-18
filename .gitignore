@@ -1,0 +1,10 @@
+# radne sitnice operativnog sistema i urednika
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# izvozi aplikacije (rezervne kopije podataka, ne idu u repozitorijum)
+beep-test-*.json
+beep-test-*.csv
