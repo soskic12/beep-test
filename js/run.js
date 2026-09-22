@@ -149,6 +149,13 @@
     global.setTimeout(function () { global.Zvuk.izgovori('Nivo ' + nivo); }, ms);
   };
 
+  /* Koliko sekundi jos ima do nastavka, ili null ako se ne nastavlja. */
+  Run.prototype.doNastavka = function () {
+    if (this.nastavakOd == null) return null;
+    var ostalo = this.nastavakOd - global.Zvuk.now();
+    return ostalo > 0 ? ostalo : null;
+  };
+
   Run.prototype.pauza = function () {
     if (this.status !== 'trci' && this.status !== 'odbrojavanje') return;
     this.pauzaElapsed = this.proteklo();

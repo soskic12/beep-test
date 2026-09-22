@@ -673,11 +673,21 @@
     napredak.classList.toggle('uskoro', t > 0 && (sh.endAt - t) < 1.5);
 
     var odbroj = app.querySelector('#tOdbroj');
+    var doNastavka = run.doNastavka();
     if (run.status === 'odbrojavanje' && t < 0) {
       odbroj.style.display = '';
+      odbroj.classList.remove('nastavak');
       odbroj.firstElementChild.textContent = Math.max(1, Math.ceil(-t));
+      odbroj.lastElementChild.textContent = 'Pripremi se';
+    } else if (doNastavka != null) {
+      // pred nastavak broj se vidi sa linije, ali ne pokriva plocice
+      odbroj.style.display = '';
+      odbroj.classList.add('nastavak');
+      odbroj.firstElementChild.textContent = Math.max(1, Math.ceil(doNastavka));
+      odbroj.lastElementChild.textContent = 'Nastavak';
     } else {
       odbroj.style.display = 'none';
+      odbroj.classList.remove('nastavak');
     }
 
     var pauzaDugme = app.querySelector('#tPauza');

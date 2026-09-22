@@ -309,3 +309,20 @@ test('posle nastavka prekinuta deonica ima onoliko vremena koliko joj je ostalo'
   assert.ok(Math.abs(prvi.kada - (kada + 3 + ostalo)) < 1e-9,
     'prvi signal posle nastavka: ocekivano +' + (3 + ostalo).toFixed(2) + ' s, dobijeno +' + (prvi.kada - kada).toFixed(2));
 });
+
+test('pred nastavak se zna koliko jos ima do polaska', () => {
+  const { r, P } = pokreni(['A']);
+  const kod = P.SHUTTLES[9].endAt;
+  naSekundu(r, kod);
+  assert.strictEqual(r.doNastavka(), null, 'dok trka traje nema odbrojavanja za nastavak');
+  r.pauza();
+  assert.strictEqual(r.doNastavka(), null, 'ni u pauzi, dok trener ne pritisne Nastavi');
+
+  sat.t = kod + 30;
+  r.nastavi();
+  assert.ok(Math.abs(r.doNastavka() - 3) < 1e-9, 'odmah po pritisku: tri sekunde');
+  sat.t += 1.5;
+  assert.ok(Math.abs(r.doNastavka() - 1.5) < 1e-9, 'na pola odbrojavanja: sekunda i po');
+  sat.t += 1.6;
+  assert.strictEqual(r.doNastavka(), null, 'kad odbrojavanje prodje, brojaca nema');
+});
