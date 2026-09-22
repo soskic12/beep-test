@@ -108,6 +108,7 @@ js/run.js                 motor testiranja: sat, opomene, ispadanja
 js/app.js                 ekrani i ruter
 test/protokol.test.js     provera racuna
 test/motor.test.js        provera motora testiranja
+test/podaci.test.js       provera cuvanja, izvoza i uvoza
 ```
 
 Nema koraka prevođenja ni zavisnosti — što stoji u datotekama, to se izvršava.
@@ -125,3 +126,8 @@ Motor testiranja se proverava sa lažnim satom, pa ne traje 22 minuta: odbrojava
 brojanje deonica, opomena i ispadanje (rezultat se upisuje iz trenutka opomene),
 vraćanje igrača u trku, odustanak i povreda, samostalni kraj kad svi ispadnu, pauza i
 nastavak, oporavak posle osvežavanja i zakazivanje signala.
+
+Čuvanje podataka se proverava sa lažnim -om: upis i arhiviranje igrača,
+redosled po srpskoj latinici, godine na dan testiranja, istorija i rezultati igrača,
+izvoz i uvoz (uz dodavanje bez duplikata), CSV sa zaštićenim poljima, pokvaren zapis
+u pregledaču i puna memorija.

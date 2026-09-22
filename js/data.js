@@ -59,12 +59,14 @@
 
   /* ---------- igraci ---------- */
 
+  /* Redosled po srpskoj latinici: C, C-kvacica, C-crtica, ..., D, DZ, Dj.
+     Oznaka 'sr' je cirilicka, pa na latinicu daje pogresan red. */
   function igraci(saArhiviranim) {
     var list = get().igraci.filter(function (p) { return saArhiviranim || !p.arhiviran; });
     return list.sort(function (a, b) {
-      var g = (a.grupa || '').localeCompare(b.grupa || '', 'sr');
+      var g = (a.grupa || '').localeCompare(b.grupa || '', 'sr-Latn');
       if (g !== 0) return g;
-      return (a.ime || '').localeCompare(b.ime || '', 'sr');
+      return (a.ime || '').localeCompare(b.ime || '', 'sr-Latn');
     });
   }
 
@@ -126,7 +128,7 @@
   function grupe() {
     var set = {};
     get().igraci.forEach(function (p) { if (p.grupa) set[p.grupa] = true; });
-    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'sr'); });
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'sr-Latn'); });
   }
 
   /* ---------- testovi ---------- */
