@@ -109,6 +109,23 @@
     });
   }
 
+  /* Datoteka za uvoz ume da bude snimljena kao ANSI (Notepad, Excel na nasim
+     podesavanjima). Citanje takve datoteke kao UTF-8 pretvara s, c, dj i z u
+     zamenske znake i ime igraca je zauvek pokvareno, pa se tu vraca na
+     windows-1250 - kodnu stranu srpske latinice na Windowsu. */
+  function dekodiraj(sadrzaj) {
+    if (typeof sadrzaj === 'string') return { tekst: skiniBOM(sadrzaj), kodna: 'utf-8' };
+    var bajtovi = new Uint8Array(sadrzaj);
+    try {
+      var tekst = new global.TextDecoder('utf-8', { fatal: true }).decode(bajtovi);
+      return { tekst: skiniBOM(tekst), kodna: 'utf-8' };
+    } catch (e) {
+      return { tekst: skiniBOM(new global.TextDecoder('windows-1250').decode(bajtovi)), kodna: 'windows-1250' };
+    }
+  }
+
+  function skiniBOM(t) { return t.charAt(0) === '﻿' ? t.slice(1) : t; }
+
   function preuzmi(imeDatoteke, sadrzaj, tip) {
     try {
       var blob = new Blob([sadrzaj], { type: (tip || 'application/json') + ';charset=utf-8' });
@@ -946,13 +963,17 @@
       if (!f) return;
       var citac = new FileReader();
       citac.onload = function () {
+        var nalaz = dekodiraj(citac.result);
+        if (nalaz.kodna !== 'utf-8') {
+          poruka('Datoteka nije UTF-8; pročitana je kao ' + nalaz.kodna + '.');
+        }
         pitaj('Uvoz podataka', [
           { tekst: 'Dodaj uz postojeće', vrednost: 'spoji', klasa: 'glavno' },
           { tekst: 'Zameni sve', vrednost: 'zameni', klasa: 'opasno' }
         ]).then(function (izbor) {
           if (!izbor) return;
           try {
-            global.DB.uvoz(citac.result, izbor === 'spoji');
+            global.DB.uvoz(nalaz.tekst, izbor === 'spoji');
             poruka('Uvezeno.');
             ekranPodesavanja();
           } catch (err) {
@@ -960,7 +981,12 @@
           }
         });
       };
-      citac.readAsText(f);
+      if (global.TextDecoder) {
+        citac.onerror = function () { global.alert('Datoteka nije pročitana.'); };
+        citac.readAsArrayBuffer(f);
+      } else {
+        citac.readAsText(f);
+      }
     });
     app.querySelector('#brisi').addEventListener('click', function () {
       if (!global.confirm('Brišu se SVI igrači i sva testiranja iz ovog pregledača. Nastaviti?')) return;
