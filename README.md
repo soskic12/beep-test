@@ -107,6 +107,7 @@ js/audio.js               signali (Web Audio) i govorna najava nivoa
 js/run.js                 motor testiranja: sat, opomene, ispadanja
 js/app.js                 ekrani i ruter
 test/protokol.test.js     provera racuna
+test/motor.test.js        provera motora testiranja
 ```
 
 Nema koraka prevođenja ni zavisnosti — što stoji u datotekama, to se izvršava.
@@ -114,8 +115,13 @@ Nema koraka prevođenja ni zavisnosti — što stoji u datotekama, to se izvrša
 ## Provera
 
 ```bash
-node --test test/protokol.test.js
+node --test test/*.test.js
 ```
 
 Pokriva tabelu nivoa, trajanje deonica, pretvaranje `nivo.deonica` ↔ broj deonica i obe
 procene VO2max (poređene sa objavljenim tabelama).
+
+Motor testiranja se proverava sa lažnim satom, pa ne traje 22 minuta: odbrojavanje,
+brojanje deonica, opomena i ispadanje (rezultat se upisuje iz trenutka opomene),
+vraćanje igrača u trku, odustanak i povreda, samostalni kraj kad svi ispadnu, pauza i
+nastavak, oporavak posle osvežavanja i zakazivanje signala.
