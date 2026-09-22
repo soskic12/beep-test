@@ -39,6 +39,7 @@
     this.onPromena = cfg.onPromena || function () {};
     this.onKraj = cfg.onKraj || function () {};
     this.wallStart = cfg.wallStart || null;
+    this.nastavakOd = null;    // sat stoji dok traje odbrojavanje pred nastavak
     this.poslednjiUpis = 0;
   }
 
@@ -46,6 +47,8 @@
     if (this.status === 'priprema') return -this.odbrojavanje;
     if (this.status === 'pauza' || this.status === 'gotovo') return this.pauzaElapsed;
     if (this.startCtx == null) return 0;
+    // pred nastavak sat stoji na mestu gde je stao, da se deonice ne vrte unazad
+    if (this.nastavakOd != null && global.Zvuk.now() < this.nastavakOd) return this.pauzaElapsed;
     return global.Zvuk.now() - this.startCtx;
   };
 
@@ -73,6 +76,7 @@
     this.startCtx = n + this.odbrojavanje;
     this.wallStart = Date.now() + this.odbrojavanje * 1000;
     this.status = this.odbrojavanje > 0 ? 'odbrojavanje' : 'trci';
+    this.nastavakOd = null;
     this.zakazanoDo = 0;
     this._zakaziOdbrojavanje();
     this._pokreniTajmer();
@@ -100,6 +104,7 @@
 
   Run.prototype.tik = function () {
     if (this.status !== 'trci' && this.status !== 'odbrojavanje') return;
+    if (this.nastavakOd != null && global.Zvuk.now() >= this.nastavakOd) this.nastavakOd = null;
     var t = this.proteklo();
 
     if (this.status === 'odbrojavanje' && t >= 0) this.status = 'trci';
@@ -158,8 +163,9 @@
     global.Zvuk.otkljucaj();
     var n = global.Zvuk.now();
     var odbroj = 3;
-    this.startCtx = n + odbroj - this.pauzaElapsed;
-    this.wallStart = Date.now() + (odbroj - this.pauzaElapsed) * 1000;
+    this.nastavakOd = n + odbroj;
+    this.startCtx = this.nastavakOd - this.pauzaElapsed;
+    this.wallStart = Date.now() + odbroj * 1000;
     this.status = this.pauzaElapsed < 0 ? 'odbrojavanje' : 'trci';
     for (var k = odbroj; k >= 1; k--) global.Zvuk.bip(n + (odbroj - k), 'odbrojavanje');
     global.Zvuk.bip(n + odbroj, 'start');
