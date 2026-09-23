@@ -109,6 +109,7 @@ js/app.js                 ekrani i ruter
 test/protokol.test.js     provera racuna
 test/motor.test.js        provera motora testiranja
 test/podaci.test.js       provera cuvanja, izvoza i uvoza
+test/ekrani.html          provera ekrana, u pregledacu
 ```
 
 Nema koraka prevođenja ni zavisnosti — što stoji u datotekama, to se izvršava.
@@ -131,3 +132,13 @@ nastavak, oporavak posle osvežavanja i zakazivanje signala.
 redosled po srpskoj latinici, godine na dan testiranja, istorija i rezultati igrača,
 izvoz i uvoz (uz dodavanje bez duplikata), CSV sa zaštićenim poljima, pokvaren zapis
 u pregledaču i puna memorija.
+
+Ekrani se proveravaju u pregledaču, jer im treba pravi DOM. Uz pokrenut server otvoriti:
+
+```
+http://localhost:8765/test/ekrani.html
+```
+
+Stranica vodi pravu aplikaciju kroz ceo tok — dodavanje igrača, izbor učesnika, trčanje sa
+lažnim satom, opomena i ispadanje, doterivanje rezultata, čuvanje, istorija, karton igrača
+sa grafikonom i oporavak prekinutog testa — pa ispiše šta je prošlo a šta palo.

@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Provera ekrana</title>
+<style>
+  body { font: 15px/1.5 system-ui, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 16px; background: #f6f7f9; }
+  h1 { font-size: 1.2rem; margin: 0 0 4px; }
+  .slab { color: #666; margin-bottom: 14px; }
+  #ishod { font-weight: 700; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; }
+  #ishod.radi { background: #e8eaed; }
+  #ishod.proslo { background: #d9f2e4; color: #0f5132; }
+  #ishod.palo { background: #fadbd8; color: #7a1c12; }
+  ol { margin: 0; padding-left: 22px; }
+  li { margin-bottom: 3px; }
+  li.ok::marker { color: #0f7b4f; }
+  li.ne { color: #a4231a; font-weight: 600; }
+  .korak { margin: 12px 0 4px; font-weight: 700; }
+  iframe { position: fixed; right: 12px; bottom: 12px; width: 380px; height: 700px; border: 1px solid #ccd; border-radius: 10px; background: #fff; }
+  @media (max-width: 900px) { iframe { position: static; width: 100%; height: 420px; margin-top: 16px; } }
+</style>
+</head>
+<body>
+<h1>Provera ekrana</h1>
+<div class="slab">Vodi pravu aplikaciju kroz ceo tok: novi test → trčanje → rezultati → istorija.
+Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://</code>.</div>
+<div id="ishod" class="radi">radi…</div>
+<div id="spisak"></div>
+<iframe id="app" src="../index.html#/igraci"></iframe>
+
+<script>
+(function () {
+  'use strict';
+
+  var spisak = document.getElementById('spisak');
+  var ishod = document.getElementById('ishod');
+  var palo = 0, proslo = 0;
+  var lista = null;
+
+  function korak(naslov) {
+    var d = document.createElement('div');
+    d.className = 'korak';
+    d.textContent = naslov;
+    spisak.appendChild(d);
+    lista = document.createElement('ol');
+    spisak.appendChild(lista);
+  }
+
+  function tvrdi(uslov, opis, dobijeno) {
+    var li = document.createElement('li');
+    li.className = uslov ? 'ok' : 'ne';
+    li.textContent = opis + (uslov ? '' : '  →  dobijeno: ' + dobijeno);
+    lista.appendChild(li);
+    if (uslov) proslo++; else palo++;
+  }
+
+  function jednako(dobijeno, ocekivano, opis) {
+    tvrdi(dobijeno === ocekivano, opis + ' (' + ocekivano + ')', JSON.stringify(dobijeno));
+  }
+
+  function kraj() {
+    ishod.className = palo ? 'palo' : 'proslo';
+    ishod.textContent = palo ? (palo + ' provera palo, ' + proslo + ' prošlo')
+                             : ('sve prolazi — ' + proslo + ' provera');
+    document.title = (palo ? 'PALO ' + palo : 'PROSLO ' + proslo);
+  }
+
+  function posle(ms, fn) { setTimeout(fn, ms); }
+
+  /* ---------- pomoc oko aplikacije u okviru ---------- */
+
+  var okvir = document.getElementById('app');
+  var w, d, vreme = 0;
+
+  function nadjiDugme(tekst) {
+    var dugmad = d.querySelectorAll('button');
+    for (var i = 0; i < dugmad.length; i++) {
+      if (dugmad[i].textContent.indexOf(tekst) >= 0) return dugmad[i];
+    }
+    return null;
+  }
+  function plocica(ime) {
+    var sve = d.querySelectorAll('.plocica');
+    for (var i = 0; i < sve.length; i++) {
+      if (sve[i].textContent.indexOf(ime) >= 0) return sve[i];
+    }
+    return null;
+  }
+  function dodir(el) {
+    el.dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }));
+    el.dispatchEvent(new w.PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+    el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  }
+  function kartica(ime) {
+    var sve = d.querySelectorAll('.kartica[data-id]');
+    for (var i = 0; i < sve.length; i++) {
+      if (sve[i].textContent.indexOf(ime) >= 0) return sve[i];
+    }
+    return null;
+  }
+
+  okvir.onload = function () {
+    w = okvir.contentWindow;
+    d = okvir.contentDocument;
+    w.onerror = function (m) { korak('greška u aplikaciji'); tvrdi(false, 'aplikacija je pukla', m); };
+    try { w.localStorage.clear(); } catch (e) {}
+    /* lazni sat i nem zvuk - provera ne sme da zavisi od zvucnika ni od 22 minuta */
+    w.Zvuk.otkljucaj = function () {};
+    w.Zvuk.now = function () { return vreme; };
+    w.Zvuk.bip = function () {};
+    w.Zvuk.otkazi = function () {};
+    w.Zvuk.izgovori = function () {};
+    w.confirm = function () { return true; };
+    posle(100, pripremi);
+  };
+
+  /* ---------- 1. igraci ---------- */
+
+  function pripremi() {
+    w.DB.load();
+    w.DB.dodajIgraca({ ime: 'Šoškić Đorđe', broj: '7', grupa: 'Kadeti', datumRodjenja: '2009-05-10' });
+    w.DB.dodajIgraca({ ime: 'Cvetković Marko', broj: '9', grupa: 'Kadeti' });
+    w.DB.dodajIgraca({ ime: 'Čolić Nikola', broj: '4', grupa: 'Kadeti' });
+    w.DB.postavi('odbrojavanje', 0);
+    w.location.hash = '#/podesavanja';
+    posle(150, function () {
+      w.location.hash = '#/igraci';
+      posle(250, proveriSpisak);
+    });
+  }
+
+  function proveriSpisak() {
+    korak('1. Spisak igrača');
+    var imena = [];
+    d.querySelectorAll('#app .skraceno b').forEach(function (b) { imena.push(b.textContent); });
+    jednako(imena.length, 3, 'prikazana su sva tri igrača');
+    jednako(imena[0], 'Cvetković Marko', 'srpska latinica: C pre Č');
+    jednako(imena[1], 'Čolić Nikola', 'pa Č');
+    jednako(imena[2], 'Šoškić Đorđe', 'pa Š');
+    w.location.hash = '#/novi';
+    posle(250, pokreniTest);
+  }
+
+  /* ---------- 2. pokretanje ---------- */
+
+  function pokreniTest() {
+    korak('2. Novi test');
+    d.querySelector('#sve').click();
+    posle(200, function () {
+      var start = d.querySelector('#start');
+      jednako(start.disabled, false, 'dugme za start je omogućeno kad ima izabranih');
+      jednako(start.textContent, 'Pokreni test (3)', 'broji izabrane');
+      start.click();
+      posle(300, uTrci);
+    });
+  }
+
+  /* ---------- 3. trcanje ---------- */
+
+  function uTrci() {
+    korak('3. Tok testa');
+    jednako(w.location.hash, '#/tok', 'otvoren je ekran testiranja');
+    jednako(d.querySelectorAll('.plocica').length, 3, 'svaki igrač ima svoju pločicu');
+
+    var P = w.Protocol;
+    vreme = P.SHUTTLES[19].endAt + 0.1;          // 20 zavrsenih deonica
+    posle(300, function () {
+      jednako(d.querySelector('#tNivo').textContent, P.fmtLevel(P.toLevelShuttle(20).level, P.toLevelShuttle(20).shuttle + 1),
+        'zaglavlje pokazuje deonicu koja je u toku');
+
+      dodir(plocica('Šoškić'));                   // prvi dodir = opomena
+      posle(250, function () {
+        var pl = plocica('Šoškić');
+        tvrdi(pl.className.indexOf('opomena') >= 0, 'prvi dodir daje opomenu', pl.className);
+        tvrdi(pl.textContent.indexOf('stigao') >= 0, 'nudi se dugme „✓ stigao"', pl.textContent);
+
+        dodir(plocica('Cvetković'));
+        posle(250, function () {
+          var c = plocica('Cvetković');
+          var stigao = c.querySelector('button[data-akcija="stigao"]');
+          tvrdi(!!stigao, 'i drugi igrač ima dugme „stigao"', c.textContent);
+          dodir(stigao);                          // ipak je stigao na liniju
+          posle(250, function () {
+            tvrdi(plocica('Cvetković').className.indexOf('opomena') < 0,
+              'posle „stigao" igrač je opet u trci', plocica('Cvetković').className);
+
+            vreme = P.SHUTTLES[24].endAt + 0.1;   // pet deonica kasnije
+            posle(300, function () {
+              dodir(plocica('Šoškić'));           // drugi dodir = ispao
+              posle(250, function () {
+                tvrdi(plocica('Šoškić').className.indexOf('ispao') >= 0,
+                  'drugi dodir znači ispadanje', plocica('Šoškić').className);
+                zavrsiTest();
+              });
+            });
+          });
+        });
+      });
+    });
+  }
+
+  function zavrsiTest() {
+    d.querySelector('#tZavrsi').click();
+    posle(400, sazetak);
+  }
+
+  /* ---------- 4. rezultati ---------- */
+
+  function sazetak() {
+    korak('4. Ekran rezultata');
+    jednako(w.location.hash, '#/sazetak', 'posle kraja se otvara ekran rezultata');
+    var kartice = d.querySelectorAll('.kartica[data-id]');
+    jednako(kartice.length, 3, 'svaki igrač ima svoj red');
+    tvrdi(kartice[0].textContent.indexOf('Cvetković') >= 0 || kartice[0].textContent.indexOf('Čolić') >= 0,
+      'poredak ide od boljeg rezultata', kartice[0].textContent.slice(0, 40));
+
+    var k = kartica('Šoškić');
+    var P = w.Protocol;
+    var pre = k.querySelector('.krupno').textContent;
+    jednako(pre, P.fmtLevel(P.toLevelShuttle(20).level, P.toLevelShuttle(20).shuttle),
+      'upisan je rezultat iz trenutka opomene, ne ispadanja');
+
+    var brojDresa = k.querySelector('span.slab') ? k.querySelector('span.slab').textContent : '(nema)';
+    var metriPre = k.querySelector('div.slab').textContent;
+
+    k.querySelector('button[data-akcija="plus"]').click();
+    posle(200, function () {
+      var posleKlika = k.querySelector('.krupno').textContent;
+      tvrdi(posleKlika !== pre, 'dugme + pomera rezultat za deonicu', posleKlika);
+      jednako(k.querySelector('span.slab').textContent, brojDresa,
+        'broj dresa ostaje broj dresa posle +');
+      tvrdi(k.querySelector('div.slab').textContent !== metriPre,
+        'red sa metrima i vremenom se osvežava', k.querySelector('div.slab').textContent);
+
+      k.querySelector('button[data-akcija="minus"]').click();
+      posle(200, function () {
+        jednako(k.querySelector('.krupno').textContent, pre, 'dugme − vraća nazad');
+
+        var izbor = k.querySelector('select[data-akcija="status"]');
+        izbor.value = 'povreda';
+        izbor.dispatchEvent(new w.Event('change', { bubbles: true }));
+        var beleska = k.querySelector('input[data-akcija="beleska"]');
+        beleska.value = 'zategao zadnju ložu';
+        beleska.dispatchEvent(new w.Event('change', { bubbles: true }));
+
+        d.querySelector('#snaziv').value = 'Jesenje merenje';
+        d.querySelector('#sacuvajTest').click();
+        posle(400, istorija);
+      });
+    });
+  }
+
+  /* ---------- 5. istorija ---------- */
+
+  function istorija() {
+    korak('5. Istorija');
+    tvrdi(w.location.hash.indexOf('#/test/') === 0, 'posle čuvanja se otvara sačuvani test', w.location.hash);
+
+    var testovi = w.DB.testovi();
+    jednako(testovi.length, 1, 'testiranje je upisano u istoriju');
+    jednako(testovi[0].naziv, 'Jesenje merenje', 'naziv sa ekrana je sačuvan');
+    jednako(testovi[0].rezultati.length, 3, 'sva tri rezultata su unutra');
+
+    var soskic = null;
+    testovi[0].rezultati.forEach(function (r) { if (r.ime.indexOf('Šoškić') >= 0) soskic = r; });
+    jednako(soskic.status, 'povreda', 'promenjen status je sačuvan');
+    jednako(soskic.beleska, 'zategao zadnju ložu', 'beleška je sačuvana, sa našim slovima');
+    jednako(soskic.ukupnoDeonica, 20, 'rezultat je onaj koji je stajao na ekranu');
+    jednako(soskic.metara, 400, 'metri prate deonice');
+    tvrdi(soskic.vo2max > 20 && soskic.vo2max < 70, 'VO2max je upisan', soskic.vo2max);
+    tvrdi(soskic.vo2maxLeger != null, 'igrač sa datumom rođenja ima i Légerovu procenu', soskic.vo2maxLeger);
+    jednako(w.DB.ucitajTok(), null, 'započeti test je obrisan pošto je sačuvan');
+
+    var csv = w.DB.csv();
+    tvrdi(csv.indexOf('Šoškić Đorđe') >= 0, 'CSV sadrži igrača', csv.slice(0, 80));
+    tvrdi(csv.indexOf('zategao zadnju ložu') >= 0, 'CSV sadrži belešku', '-');
+
+    var red = d.querySelectorAll('.tabela tbody tr, .tabela tr');
+    tvrdi(red.length >= 3, 'ekran testiranja prikazuje rezultate', red.length);
+
+    w.location.hash = '#/testovi';
+    posle(300, karton);
+  }
+
+  /* ---------- 6. karton igraca ---------- */
+
+  function karton() {
+    korak('6. Karton igrača');
+    var tekst = d.getElementById('app').textContent;
+    tvrdi(tekst.indexOf('Jesenje merenje') >= 0, 'testiranje se vidi u spisku testiranja', tekst.slice(0, 60));
+
+    var soskic = null;
+    w.DB.igraci().forEach(function (p) { if (p.ime.indexOf('Šoškić') >= 0) soskic = p; });
+    w.location.hash = '#/igrac/' + soskic.id;
+    posle(300, function () {
+      var t = d.getElementById('app').textContent;
+      tvrdi(t.indexOf('Šoškić Đorđe') >= 0, 'otvoren je karton igrača', t.slice(0, 40));
+      tvrdi(t.indexOf('Jesenje merenje') >= 0, 'u kartonu stoji odrađeno testiranje', '-');
+      jednako(w.DB.rezultatiIgraca(soskic.id).length, 1, 'rezultat je vezan za igrača');
+      tvrdi(!d.querySelector('svg.grafikon'), 'posle prvog testa grafikona jos nema', 'nacrtan je');
+      tvrdi(t.indexOf('od drugog testa') >= 0, 'pise zasto grafikona nema', '-');
+      drugiTest(soskic);
+    });
+  }
+
+  /* posle drugog testiranja grafikon ima sta da nacrta */
+  function drugiTest(soskic) {
+    var stari = w.DB.testovi()[0];
+    var noviRez = JSON.parse(JSON.stringify(stari.rezultati));
+    noviRez.forEach(function (r) { r.ukupnoDeonica += 8; r.metara = r.ukupnoDeonica * 20; });
+    w.DB.sacuvajTest({ naziv: 'Prolecno merenje', datum: '2026-03-01T10:00:00.000Z', rezultati: noviRez });
+    w.location.hash = '#/igraci';
+    posle(200, function () {
+      w.location.hash = '#/igrac/' + soskic.id;
+      posle(300, function () {
+        tvrdi(!!d.querySelector('svg.grafikon'), 'posle drugog testa grafikon je nacrtan', '-');
+        var tacke = d.querySelector('polyline.linija');
+        tvrdi(tacke && tacke.getAttribute('points').split(' ').length === 2,
+          'linija spaja oba merenja', tacke ? tacke.getAttribute('points') : '(nema linije)');
+        var t = d.getElementById('app').textContent;
+        tvrdi(t.indexOf('8') >= 0 && /u odnosu na prethodni test/.test(t),
+          'pise koliko je napredovao u odnosu na prethodni test', '-');
+        posle(100, oporavak);
+      });
+    });
+  }
+
+  /* ---------- 7. oporavak zapocetog testa ---------- */
+
+  function oporavak() {
+    korak('7. Oporavak posle osvežavanja');
+    w.DB.sacuvajTok({
+      id: 'tok-proba', naziv: 'Prekinuti test', datum: new Date().toISOString(),
+      status: 'pauza', pauzaElapsed: 120, opomena: true, najava: false, odbrojavanje: 0,
+      ucesnici: [{ igracId: 'x', ime: 'Šoškić Đorđe', status: 'aktivan' }]
+    });
+    w.location.hash = '#/igraci';
+    posle(200, function () {
+      w.location.hash = '#/novi';
+      posle(300, function () {
+        var nastavi = d.querySelector('#nastaviTok');
+        tvrdi(!!nastavi, 'na ekranu Novi test se nudi „Nastavi"', d.getElementById('app').textContent.slice(0, 60));
+        var tekst = d.getElementById('app').textContent;
+        tvrdi(tekst.indexOf('Prekinuti test') >= 0, 'piše koji je test prekinut', '-');
+        if (nastavi) {
+          nastavi.click();
+          posle(300, function () {
+            jednako(w.location.hash, '#/tok', 'nastavak vraća na ekran testiranja');
+            tvrdi(d.querySelectorAll('.plocica').length === 1, 'učesnici prekinutog testa su vraćeni',
+              d.querySelectorAll('.plocica').length);
+            var pauza = d.querySelector('#tPauza');
+            jednako(pauza ? pauza.textContent : '(nema)', 'Nastavi', 'test čeka u pauzi, ne kreće sam');
+            kraj();
+          });
+        } else {
+          kraj();
+        }
+      });
+    });
+  }
+
+  posle(25000, function () {
+    if (document.title === 'Provera ekrana') {
+      tvrdi(false, 'provera nije stigla do kraja', 'zaglavila se');
+      kraj();
+    }
+  });
+})();
+</script>
+</body>
+</html>

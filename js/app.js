@@ -752,7 +752,7 @@
         return '<div class="kartica" data-id="' + esc(r.igracId) + '">' +
           '<div class="red"><div class="rast"><b>' + (i + 1) + '. ' + esc(r.ime) + '</b>' +
           (r.broj ? ' <span class="slab">#' + esc(r.broj) + '</span>' : '') +
-          '<div class="slab">' + r.metara + ' m · ' + fmtVreme(r.vremeS) +
+          '<div class="slab" data-polje="mere">' + r.metara + ' m · ' + fmtVreme(r.vremeS) +
           (r.vo2max != null ? ' · VO2max ' + r.vo2max : '') + '</div></div>' +
           '<button class="malo" data-akcija="minus">−</button>' +
           '<div class="krupno" style="min-width:64px;text-align:center">' + P.fmtLevel(r.nivo, r.deonica) + '</div>' +
@@ -817,7 +817,7 @@
     postaviRezultat(r, Math.max(0, Math.min(P.TOTAL_SHUTTLES, r.ukupnoDeonica + pomak)));
     var ls = P.toLevelShuttle(r.ukupnoDeonica);
     kart.querySelector('.krupno').textContent = P.fmtLevel(ls.level, ls.shuttle);
-    kart.querySelector('.slab').textContent = r.metara + ' m · ' + fmtVreme(r.vremeS) +
+    kart.querySelector('[data-polje="mere"]').textContent = r.metara + ' m · ' + fmtVreme(r.vremeS) +
       (r.vo2max != null ? ' · VO2max ' + r.vo2max : '');
   }
 
