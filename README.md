@@ -139,6 +139,11 @@ Ekrani se proveravaju u pregledaču, jer im treba pravi DOM. Uz pokrenut server 
 http://localhost:8765/test/ekrani.html
 ```
 
+Provera kreće tek na dugme, jer **briše podatke u pregledaču** da bi počela od praznog
+stanja. Pre početka napravi kopiju svega što je upisano i vrati je kad završi — ali kopija
+živi samo dok je kartica otvorena, pa proveru ne treba puštati na uređaju na kom je
+evidencija, bez izvoza.
+
 Stranica vodi pravu aplikaciju kroz ceo tok — dodavanje igrača, izbor učesnika, trčanje sa
 lažnim satom, opomena i ispadanje, doterivanje rezultata, čuvanje, istorija, karton igrača
 sa grafikonom i oporavak prekinutog testa — pa ispiše šta je prošlo a šta palo.
