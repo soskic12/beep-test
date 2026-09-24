@@ -2,7 +2,7 @@
   "name": "Beep test — grupno testiranje",
   "short_name": "Beep test",
   "description": "20 m beep test za više igrača istovremeno, sa evidencijom rezultata kroz vreme.",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

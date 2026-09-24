@@ -1,9 +1,8 @@
 /* Offline rad: aplikacija se drzi u kesu pregledaca, pa radi i bez mreze -
    u sali, na terenu, na iskljucenim podacima. */
-var KES = 'beep-test-v1';
+var KES = 'beep-test-v2';
 var DATOTEKE = [
   './',
-  './index.html',
   './app.css',
   './manifest.webmanifest',
   './js/protocol.js',
@@ -38,25 +37,37 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+/* Preusmeren odgovor (kad server /index.html salje na /) navigacija odbija i
+   prikazuje "stranica nije dostupna", pa takav odgovor ne ulazi u kes. */
+function vredanCuvanja(odgovor) {
+  return odgovor && odgovor.ok && !odgovor.redirected;
+}
+
+function upisi(zahtev, odgovor) {
+  var kopija = odgovor.clone();
+  caches.open(KES).then(function (k) { k.put(zahtev, kopija); });
+}
+
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
+  if (e.request.url.indexOf('http') !== 0) return;
+  var navigacija = e.request.mode === 'navigate';
+
   e.respondWith(
     caches.match(e.request).then(function (odgovor) {
-      if (odgovor) {
+      if (odgovor && !(navigacija && odgovor.redirected)) {
         // u pozadini povuci svezu verziju za sledece pokretanje
         fetch(e.request).then(function (sveza) {
-          if (sveza && sveza.ok) caches.open(KES).then(function (k) { k.put(e.request, sveza.clone()); });
+          if (vredanCuvanja(sveza)) upisi(e.request, sveza);
         }).catch(function () { /* nema mreze - nema veze */ });
         return odgovor;
       }
       return fetch(e.request).then(function (sveza) {
-        if (sveza && sveza.ok && e.request.url.indexOf('http') === 0) {
-          var kopija = sveza.clone();
-          caches.open(KES).then(function (k) { k.put(e.request, kopija); });
-        }
+        if (vredanCuvanja(sveza)) upisi(e.request, sveza);
         return sveza;
       }).catch(function () {
-        return caches.match('./index.html');
+        // bez mreze svaka navigacija dobija pocetnu stranu iz kesa
+        return caches.match('./');
       });
     })
   );
