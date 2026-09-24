@@ -23,8 +23,10 @@ function napraviProzor(opcije) {
     memorija: memorija
   };
   global.window = w;
-  delete require.cache[require.resolve(path.join(__dirname, '..', 'js', 'data.js'))];
-  require(path.join(__dirname, '..', 'js', 'data.js'));
+  ['protocol.js', 'testovi.js', 'data.js'].forEach((d) => {
+    delete require.cache[require.resolve(path.join(__dirname, '..', 'js', d))];
+    require(path.join(__dirname, '..', 'js', d));
+  });
   w.DB.load();
   return w;
 }
@@ -219,17 +221,45 @@ test('uvezeni podaci prezivljavaju ponovno ucitavanje', () => {
 
 /* ---------- CSV ---------- */
 
-test('CSV ima zaglavlje, tacka-zarez i sve rezultate', () => {
+test('CSV svih rezultata ima vrstu testa i glavni rezultat', () => {
   const w = napraviProzor();
   upisiTest(w, '2025-03-01T10:00:00.000Z', [
     { igracId: 'a', ime: 'Šoškić Đorđe', broj: '7', grupa: 'Kadeti', nivo: 10, deonica: 5, ukupnoDeonica: 86, metara: 1720, vremeS: 600.4, vo2max: 47.5, status: 'ispao', beleska: '' }
   ]);
   const redovi = w.DB.csv().split('\r\n');
-  assert.strictEqual(redovi[0], 'datum;test;igrac;broj;grupa;nivo;deonica;ukupno_deonica;metara;vreme_s;vo2max;status;beleska');
+  assert.strictEqual(redovi[0], 'datum;test;vrsta;igrac;broj;grupa;rezultat;jedinica;status;beleska');
   assert.strictEqual(redovi.length, 2);
   const polja = redovi[1].split(';');
-  assert.strictEqual(polja[2], 'Šoškić Đorđe');
+  assert.strictEqual(polja[2], 'Beep test', 'pise koja je vrsta testa');
+  assert.strictEqual(polja[3], 'Šoškić Đorđe');
+  assert.strictEqual(polja[6], '86', 'glavni rezultat beep testa je ukupno deonica');
+  assert.strictEqual(polja[7], 'deonica');
+});
+
+test('CSV jednog testiranja ima kolone te vrste testa', () => {
+  const w = napraviProzor();
+  const t = upisiTest(w, '2025-03-01T10:00:00.000Z', [
+    { igracId: 'a', ime: 'Šoškić Đorđe', broj: '7', grupa: 'Kadeti', nivo: 10, deonica: 5, ukupnoDeonica: 86, metara: 1720, vremeS: 600.4, vo2max: 47.5, status: 'ispao', beleska: '' }
+  ]);
+  const redovi = w.DB.csvTesta(w.DB.test(t.id)).split('\r\n');
+  assert.strictEqual(redovi[0],
+    'datum;test;igrac;broj;grupa;nivo;deonica;ukupno_deonica;metara;vreme_s;vo2max;status;beleska');
+  const polja = redovi[1].split(';');
   assert.strictEqual(polja[9], '600', 'vreme se zaokruzuje na sekundu');
+  assert.strictEqual(polja[10], '47.5');
+});
+
+test('CSV jednog testiranja prati vrstu - skok ima pokusaje umesto nivoa', () => {
+  const w = napraviProzor();
+  const t = w.DB.sacuvajTest({
+    vrsta: 'skok-mesto', naziv: 'Skokovi', datum: '2025-03-01T10:00:00.000Z',
+    rezultati: [{ igracId: 'a', ime: 'Mika', pokusaji: [58, 61, 60], najbolji: 61, status: 'zavrsio' }]
+  });
+  const redovi = w.DB.csvTesta(w.DB.test(t.id)).split('\r\n');
+  assert.strictEqual(redovi[0], 'datum;test;igrac;broj;grupa;rezultat;pokusaj_1;pokusaj_2;pokusaj_3;status;beleska');
+  const polja = redovi[1].split(';');
+  assert.strictEqual(polja[5], '61', 'upisuje se najbolji pokusaj');
+  assert.deepStrictEqual(polja.slice(6, 9), ['58', '61', '60']);
 });
 
 test('CSV stiti polja sa tacka-zarezom, navodnicima i novim redom', () => {
@@ -242,14 +272,43 @@ test('CSV stiti polja sa tacka-zarezom, navodnicima i novim redom', () => {
   assert.ok(red.indexOf('"rekao ""ne mogu""') >= 0, 'navodnici se udvajaju');
 });
 
-test('CSV skuplja sve testove, od starijeg ka novijem', () => {
+/* ---------- vrste testova ---------- */
+
+test('stara testiranja bez vrste se citaju kao beep test', () => {
   const w = napraviProzor();
-  upisiTest(w, '2025-09-01T10:00:00.000Z', [{ igracId: 'a', ime: 'A' }], 'jesen');
-  upisiTest(w, '2025-03-01T10:00:00.000Z', [{ igracId: 'a', ime: 'A' }], 'prolece');
-  const redovi = w.DB.csv().split('\r\n');
-  assert.strictEqual(redovi.length, 3);
-  assert.ok(redovi[1].indexOf('prolece') >= 0, 'prvo starije testiranje');
-  assert.ok(redovi[2].indexOf('jesen') >= 0);
+  w.memorija['beeptest.v1'] = JSON.stringify({
+    verzija: 1, igraci: [],
+    testovi: [{ id: 'stari', naziv: 'Pre registra', datum: '2025-01-01T10:00:00.000Z', rezultati: [] }],
+    podesavanja: {}
+  });
+  w.DB.load();
+  assert.strictEqual(w.DB.test('stari').vrsta, 'beep', 'zatecena evidencija ne sme da ostane bez vrste');
+});
+
+test('novo testiranje bez navedene vrste je beep test', () => {
+  const w = napraviProzor();
+  const t = upisiTest(w, '2025-03-01T10:00:00.000Z', []);
+  assert.strictEqual(w.DB.test(t.id).vrsta, 'beep');
+});
+
+test('rezultati igraca mogu da se traze po vrsti testa', () => {
+  const w = napraviProzor();
+  upisiTest(w, '2025-03-01T10:00:00.000Z', [{ igracId: 'a', ime: 'A', ukupnoDeonica: 60 }], 'beep u martu');
+  w.DB.sacuvajTest({
+    vrsta: 'skok-mesto', naziv: 'Skokovi u martu', datum: '2025-03-02T10:00:00.000Z',
+    rezultati: [{ igracId: 'a', ime: 'A', pokusaji: [58, 61], najbolji: 61 }]
+  });
+  assert.strictEqual(w.DB.rezultatiIgraca('a').length, 2, 'bez filtera stize sve');
+  assert.strictEqual(w.DB.rezultatiIgraca('a', 'beep').length, 1);
+  assert.strictEqual(w.DB.rezultatiIgraca('a', 'skok-mesto')[0].najbolji, 61);
+  assert.strictEqual(w.DB.rezultatiIgraca('a', 'beep')[0].vrsta, 'beep', 'uz rezultat stoji vrsta testa');
+});
+
+test('zna se koje su vrste testova vec radjene', () => {
+  const w = napraviProzor();
+  upisiTest(w, '2025-03-01T10:00:00.000Z', []);
+  w.DB.sacuvajTest({ vrsta: 'sprint-20', naziv: 'Sprint', datum: '2025-05-01T10:00:00.000Z', rezultati: [] });
+  assert.deepStrictEqual(w.DB.vrsteUIstoriji(), ['sprint-20', 'beep'], 'od najskorijeg');
 });
 
 /* ---------- pokvaren ili pun localStorage ---------- */

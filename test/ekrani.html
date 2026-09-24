@@ -353,7 +353,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
     var stari = w.DB.testovi()[0];
     var noviRez = JSON.parse(JSON.stringify(stari.rezultati));
     noviRez.forEach(function (r) { r.ukupnoDeonica += 8; r.metara = r.ukupnoDeonica * 20; });
-    w.DB.sacuvajTest({ naziv: 'Prolecno merenje', datum: '2026-03-01T10:00:00.000Z', rezultati: noviRez });
+    w.DB.sacuvajTest({ naziv: 'Zimsko merenje', datum: '2026-12-01T10:00:00.000Z', rezultati: noviRez });   // kasniji datum: napredak
     w.location.hash = '#/igraci';
     posle(200, function () {
       w.location.hash = '#/igrac/' + soskic.id;
@@ -363,8 +363,8 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
         tvrdi(tacke && tacke.getAttribute('points').split(' ').length === 2,
           'linija spaja oba merenja', tacke ? tacke.getAttribute('points') : '(nema linije)');
         var t = d.getElementById('app').textContent;
-        tvrdi(t.indexOf('8') >= 0 && /u odnosu na prethodni test/.test(t),
-          'pise koliko je napredovao u odnosu na prethodni test', '-');
+        tvrdi(/u odnosu na prethodni/.test(t) && /bolje za 8 deonica/.test(t),
+          'pise koliko je napredovao i u kom smeru', t.replace(/s+/g, ' ').slice(0, 200));
         posle(100, oporavak);
       });
     });

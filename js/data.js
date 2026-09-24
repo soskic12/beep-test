@@ -27,6 +27,12 @@
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
+  /* Testiranja upisana pre nego sto je bilo vise vrsta testa su beep test. */
+  function nadopuni(t) {
+    if (t && !t.vrsta) t.vrsta = 'beep';
+    return t;
+  }
+
   function load() {
     var raw = null;
     try { raw = global.localStorage.getItem(KEY); } catch (e) { raw = null; }
@@ -36,7 +42,7 @@
       state = {
         verzija: 1,
         igraci: Array.isArray(s.igraci) ? s.igraci : [],
-        testovi: Array.isArray(s.testovi) ? s.testovi : [],
+        testovi: (Array.isArray(s.testovi) ? s.testovi : []).map(nadopuni),
         podesavanja: Object.assign(clone(DEFAULT_SETTINGS), s.podesavanja || {})
       };
     } catch (e) {
@@ -147,6 +153,7 @@
 
   function sacuvajTest(t) {
     var s = get();
+    nadopuni(t);
     if (t.id) {
       for (var i = 0; i < s.testovi.length; i++) {
         if (s.testovi[i].id === t.id) { s.testovi[i] = t; save(); return t; }
@@ -165,16 +172,29 @@
   }
 
   /* Svi rezultati jednog igraca, od najstarijeg ka najnovijem. */
-  function rezultatiIgraca(igracId) {
+  function rezultatiIgraca(igracId, vrsta) {
     var out = [];
     get().testovi.forEach(function (t) {
+      if (vrsta && (t.vrsta || 'beep') !== vrsta) return;
       (t.rezultati || []).forEach(function (r) {
         if (r.igracId === igracId) {
-          out.push(Object.assign({}, r, { testId: t.id, datum: t.datum, naziv: t.naziv }));
+          out.push(Object.assign({}, r, {
+            testId: t.id, datum: t.datum, naziv: t.naziv, vrsta: t.vrsta || 'beep'
+          }));
         }
       });
     });
     return out.sort(function (a, b) { return (a.datum || '').localeCompare(b.datum || ''); });
+  }
+
+  /* Vrste testova koje su vec radjene, od najskorije. */
+  function vrsteUIstoriji() {
+    var vidjene = {}, red = [];
+    testovi().forEach(function (t) {
+      var v = t.vrsta || 'beep';
+      if (!vidjene[v]) { vidjene[v] = true; red.push(v); }
+    });
+    return red;
   }
 
   /* ---------- podesavanja ---------- */
@@ -232,21 +252,40 @@
     return state;
   }
 
+  /* CSV jednog testiranja - kolone su one koje ta vrsta testa trazi. */
+  function csvTesta(t) {
+    var v = global.Testovi.vrsta(t.vrsta);
+    var zaglavlje = ['datum', 'test', 'igrac', 'broj', 'grupa']
+      .concat(v.kolone).concat(['status', 'beleska']);
+    var redovi = [zaglavlje];
+    (t.rezultati || []).forEach(function (r) {
+      redovi.push([t.datum || '', t.naziv || '', r.ime || '', r.broj || '', r.grupa || '']
+        .concat(v.red(r)).concat([r.status || '', r.beleska || '']));
+    });
+    return uCsv(redovi);
+  }
+
+  /* CSV svih rezultata - vrste se mesaju, pa stoji samo glavni rezultat. */
   function csv() {
-    var red = [['datum', 'test', 'igrac', 'broj', 'grupa', 'nivo', 'deonica', 'ukupno_deonica', 'metara', 'vreme_s', 'vo2max', 'status', 'beleska']];
+    var redovi = [['datum', 'test', 'vrsta', 'igrac', 'broj', 'grupa', 'rezultat', 'jedinica', 'status', 'beleska']];
     testovi().slice().reverse().forEach(function (t) {
+      var v = global.Testovi.vrsta(t.vrsta);
       (t.rezultati || []).forEach(function (r) {
-        red.push([
-          t.datum || '', t.naziv || '', r.ime || '', r.broj || '', r.grupa || '',
-          r.nivo, r.deonica, r.ukupnoDeonica, r.metara, Math.round(r.vremeS || 0),
-          r.vo2max == null ? '' : r.vo2max, r.status || '', r.beleska || ''
+        var g = v.glavna(r);
+        redovi.push([
+          t.datum || '', t.naziv || '', v.naziv, r.ime || '', r.broj || '', r.grupa || '',
+          g == null ? '' : g, v.jedinica || '', r.status || '', r.beleska || ''
         ]);
       });
     });
-    return red.map(function (r) {
+    return uCsv(redovi);
+  }
+
+  function uCsv(redovi) {
+    return redovi.map(function (r) {
       return r.map(function (c) {
         var v = c == null ? '' : String(c);
-        return /[",;\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+        return /[",;\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
       }).join(';');
     }).join('\r\n');
   }
@@ -276,6 +315,8 @@
     obrisiTok: obrisiTok,
     izvoz: izvoz,
     uvoz: uvoz,
-    csv: csv
+    csv: csv,
+    csvTesta: csvTesta,
+    vrsteUIstoriji: vrsteUIstoriji
   };
 })(window);

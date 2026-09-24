@@ -322,11 +322,8 @@
   function ekranIgrac(id) {
     var p = global.DB.igrac(id);
     if (!p) { idi('#/igraci'); return; }
-    var rez = global.DB.rezultatiIgraca(id);
+    var sviRez = global.DB.rezultatiIgraca(id);
     var god = global.DB.godine(p);
-    var najbolji = rez.reduce(function (a, r) { return !a || r.ukupnoDeonica > a.ukupnoDeonica ? r : a; }, null);
-    var zadnji = rez.length ? rez[rez.length - 1] : null;
-    var pomak = rez.length > 1 ? rez[rez.length - 1].ukupnoDeonica - rez[rez.length - 2].ukupnoDeonica : null;
 
     app.innerHTML =
       '<div class="zaglavlje"><button class="tiho" id="nazad">‹ Nazad</button>' +
@@ -338,27 +335,7 @@
         .filter(Boolean).join(' · ') +
       (p.beleska ? '<div style="margin-top:6px">' + esc(p.beleska) + '</div>' : '') +
       '</div>' +
-      (rez.length ?
-        '<div class="kartica"><div class="red" style="text-align:center">' +
-        '<div class="rast"><div class="krupno">' + P.fmtLevel(najbolji.nivo, najbolji.deonica) + '</div><div class="slab">najbolje</div></div>' +
-        '<div class="rast"><div class="krupno">' + P.fmtLevel(zadnji.nivo, zadnji.deonica) + '</div><div class="slab">poslednje</div></div>' +
-        '<div class="rast"><div class="krupno">' + (zadnji.vo2max != null ? zadnji.vo2max : '—') + '</div><div class="slab">VO2max</div></div>' +
-        '</div>' +
-        (pomak != null ? '<div class="sredina slab" style="margin-top:8px">u odnosu na prethodni test: <b>' +
-          (pomak > 0 ? '+' : '') + pomak + '</b> deonica</div>' : '') +
-        '</div>' +
-        '<div class="kartica"><h2>Napredak</h2>' + grafikon(rez) + '</div>' +
-        '<div class="kartica"><h2>Rezultati</h2><div class="uvijeno"><table class="tabela">' +
-        '<tr><th>Datum</th><th>Test</th><th class="broj">Nivo</th><th class="broj">m</th><th class="broj">VO2max</th><th></th></tr>' +
-        rez.slice().reverse().map(function (r) {
-          return '<tr><td>' + fmtDatum(r.datum) + '</td>' +
-            '<td class="skraceno"><a href="#/test/' + esc(r.testId) + '">' + esc(r.naziv || 'test') + '</a></td>' +
-            '<td class="broj"><b>' + P.fmtLevel(r.nivo, r.deonica) + '</b></td>' +
-            '<td class="broj">' + r.metara + '</td>' +
-            '<td class="broj">' + (r.vo2max != null ? r.vo2max : '—') + '</td>' +
-            '<td>' + statusZnak(r.status) + '</td></tr>';
-        }).join('') +
-        '</table></div></div>'
+      (sviRez.length ? poVrstama(sviRez).map(karticaVrste).join('')
         : '<div class="prazno">Još nema odrađenih testova za ovog igrača.</div>') +
       '<div class="dugmad razmak"><button id="arhiviraj">' + (p.arhiviran ? 'Vrati iz arhive' : 'Arhiviraj') + '</button>' +
       '<button class="opasno" id="obrisi">Obriši igrača</button></div>';
@@ -370,8 +347,8 @@
       ekranIgrac(id);
     });
     app.querySelector('#obrisi').addEventListener('click', function () {
-      var upozorenje = rez.length
-        ? 'Igrač ima ' + rez.length + ' rezultat(a). Brisanjem se gubi veza sa istorijom (rezultati u testovima ostaju upisani pod imenom). Obrisati?'
+      var upozorenje = sviRez.length
+        ? 'Igrač ima ' + sviRez.length + ' rezultat(a). Brisanjem se gubi veza sa istorijom (rezultati u testovima ostaju upisani pod imenom). Obrisati?'
         : 'Obrisati igrača?';
       if (!global.confirm(upozorenje)) return;
       global.DB.obrisiIgraca(p.id);
@@ -380,11 +357,64 @@
     });
   }
 
-  /* Jednostavan SVG grafikon napretka - ukupno deonica kroz vreme. */
-  function grafikon(rez) {
+  /* Rezultati razvrstani po vrsti testa, redom kojim su poslednji put radjeni. */
+  function poVrstama(rez) {
+    var red = {}, redosled = [];
+    rez.forEach(function (r) {
+      var v = r.vrsta || 'beep';
+      if (!red[v]) { red[v] = []; redosled.push(v); }
+      red[v].push(r);
+    });
+    return redosled.map(function (v) {
+      return { vrsta: global.Testovi.vrsta(v), rez: red[v] };
+    });
+  }
+
+  function karticaVrste(g) {
+    var v = g.vrsta, rez = g.rez;
+    var najbolji = rez.reduce(function (a, r) {
+      return global.Testovi.bolji(v, v.glavna(r), a ? v.glavna(a) : null) ? r : a;
+    }, null);
+    var zadnji = rez[rez.length - 1];
+    var pomak = null;
+    if (rez.length > 1) {
+      var a = v.glavna(rez[rez.length - 1]), b = v.glavna(rez[rez.length - 2]);
+      if (a != null && b != null) pomak = a - b;
+    }
+    var napredak = pomak == null ? null
+      : (pomak === 0 ? 'isto kao prošli put'
+        : (global.Testovi.bolji(v, v.glavna(rez[rez.length - 1]), v.glavna(rez[rez.length - 2])) ? 'bolje' : 'slabije') +
+          ' za ' + global.Testovi.broj(Math.abs(pomak), v.decimala || 0) + (v.jedinica ? ' ' + v.jedinica : ''));
+
+    return '<div class="kartica"><h2>' + esc(v.naziv) + '</h2>' +
+      '<div class="red" style="text-align:center">' +
+      '<div class="rast"><div class="krupno">' + esc(v.prikaz(najbolji)) + '</div><div class="slab">najbolje</div></div>' +
+      '<div class="rast"><div class="krupno">' + esc(v.prikaz(zadnji)) + '</div><div class="slab">poslednje</div></div>' +
+      '<div class="rast"><div class="krupno">' + rez.length + '</div><div class="slab">merenja</div></div>' +
+      '</div>' +
+      (napredak ? '<div class="sredina slab" style="margin-top:8px">u odnosu na prethodni: <b>' + esc(napredak) + '</b></div>' : '') +
+      grafikon(rez, v) +
+      '<div class="uvijeno" style="margin-top:10px"><table class="tabela">' +
+      '<tr><th>Datum</th><th>Test</th>' +
+      v.kolonePrikaz.map(function (k) { return '<th class="broj">' + esc(k) + '</th>'; }).join('') +
+      '<th></th></tr>' +
+      rez.slice().reverse().map(function (r) {
+        return '<tr><td>' + fmtDatum(r.datum) + '</td>' +
+          '<td class="skraceno"><a href="#/test/' + esc(r.testId) + '">' + esc(r.naziv || 'test') + '</a></td>' +
+          v.redPrikaz(r).map(function (c) {
+            return '<td class="broj">' + (c.jako ? '<b>' + esc(c.tekst) + '</b>' : esc(c.tekst)) + '</td>';
+          }).join('') +
+          '<td>' + statusZnak(r.status) + '</td></tr>';
+      }).join('') +
+      '</table></div></div>';
+  }
+
+  /* Napredak kroz vreme - vrednost i smer zavise od vrste testa. */
+  function grafikon(rez, v) {
     if (rez.length < 2) return '<div class="slab">Grafikon se crta od drugog testa.</div>';
     var w = 600, h = 220, l = 46, r = 12, t = 16, b = 34;
-    var y = rez.map(function (x) { return x.ukupnoDeonica; });
+    var y = rez.map(function (x) { return v.glavna(x); }).filter(function (x) { return x != null; });
+    if (y.length < 2) return '<div class="slab">Grafikon se crta od drugog merenja.</div>';
     var min = Math.min.apply(null, y), max = Math.max.apply(null, y);
     if (max === min) { max = min + 1; }
     var raspon = max - min;
@@ -392,20 +422,21 @@
     max = max + raspon * 0.15;
     var tacke = rez.map(function (x, i) {
       var px = l + (rez.length === 1 ? (w - l - r) / 2 : i * (w - l - r) / (rez.length - 1));
-      var py = t + (h - t - b) * (1 - (x.ukupnoDeonica - min) / (max - min));
+      var py = t + (h - t - b) * (1 - ((v.glavna(x) == null ? min : v.glavna(x)) - min) / (max - min));
       return { x: px, y: py, r: x };
     });
     return '<svg class="grafikon" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Napredak">' +
       '<line class="osa" x1="' + l + '" y1="' + t + '" x2="' + l + '" y2="' + (h - b) + '"/>' +
       '<line class="osa" x1="' + l + '" y1="' + (h - b) + '" x2="' + (w - r) + '" y2="' + (h - b) + '"/>' +
-      '<text x="2" y="' + (t + 8) + '">' + Math.round(max) + '</text>' +
-      '<text x="2" y="' + (h - b) + '">' + Math.round(min) + '</text>' +
+      '<text x="2" y="' + (t + 8) + '">' + global.Testovi.broj(max, v.decimala || 0) + '</text>' +
+      '<text x="2" y="' + (h - b) + '">' + global.Testovi.broj(min, v.decimala || 0) + '</text>' +
       '<polyline class="linija" points="' + tacke.map(function (p) { return p.x + ',' + p.y; }).join(' ') + '"/>' +
       tacke.map(function (p) { return '<circle class="tacka" cx="' + p.x + '" cy="' + p.y + '" r="5"/>'; }).join('') +
       '<text x="' + l + '" y="' + (h - 8) + '">' + fmtDatum(rez[0].datum) + '</text>' +
       '<text x="' + (w - r) + '" y="' + (h - 8) + '" text-anchor="end">' + fmtDatum(rez[rez.length - 1].datum) + '</text>' +
       '</svg>' +
-      '<div class="slab sredina">ukupno deonica po testu</div>';
+      '<div class="slab sredina">' + esc(v.naziv) + (v.jedinica ? ' (' + esc(v.jedinica) + ')' : '') +
+      (v.boljeJe === 'manje' ? ' — niže je bolje' : '') + '</div>';
   }
 
   /* ---------- priprema testa ---------- */
@@ -854,38 +885,44 @@
     app.innerHTML =
       '<div class="zaglavlje"><h1>Testovi</h1><a class="dugme glavno" href="#/novi">+ Novi</a></div>' +
       (lista.length ? lista.map(function (t) {
+        var v = global.Testovi.vrsta(t.vrsta);
         var rez = t.rezultati || [];
-        var najbolji = rez.reduce(function (a, r) { return !a || r.ukupnoDeonica > a.ukupnoDeonica ? r : a; }, null);
-        var prosek = rez.length ? rez.reduce(function (s, r) { return s + r.ukupnoDeonica; }, 0) / rez.length : 0;
+        var najbolji = rez.reduce(function (a, r) {
+          return global.Testovi.bolji(v, v.glavna(r), a ? v.glavna(a) : null) ? r : a;
+        }, null);
         return '<a class="kartica klik red" href="#/test/' + esc(t.id) + '" style="color:inherit;text-decoration:none">' +
-          '<div class="rast"><div class="skraceno"><b>' + esc(t.naziv || 'Beep test') + '</b></div>' +
-          '<div class="slab skraceno">' + fmtDatum(t.datum) + ' · ' + rez.length + ' učesnika' +
+          '<div class="rast"><div class="skraceno"><b>' + esc(t.naziv || v.naziv) + '</b></div>' +
+          '<div class="slab skraceno">' + esc(v.kratko) + ' · ' + fmtDatum(t.datum) + ' · ' + rez.length + ' učesnika' +
           (t.lokacija ? ' · ' + esc(t.lokacija) : '') + '</div></div>' +
-          '<div class="sredina"><div class="krupno">' + (najbolji ? P.fmtLevel(najbolji.nivo, najbolji.deonica) : '—') + '</div>' +
-          '<div class="slab">prosek ' + prosek.toFixed(0) + ' deonica</div></div></a>';
+          '<div class="sredina"><div class="krupno">' + (najbolji ? esc(v.prikaz(najbolji)) : '—') + '</div>' +
+          '<div class="slab">najbolji</div></div></a>';
       }).join('') : '<div class="prazno">Još nema odrađenih testiranja.</div>');
   }
 
   function ekranTest(id) {
     var t = global.DB.test(id);
     if (!t) { idi('#/testovi'); return; }
-    var rez = (t.rezultati || []).slice().sort(function (a, b) { return b.ukupnoDeonica - a.ukupnoDeonica; });
+    var v = global.Testovi.vrsta(t.vrsta);
+    var rez = poredak(t.rezultati || [], v);
+
     app.innerHTML =
-      '<div class="zaglavlje"><button class="tiho" id="nazad">‹ Nazad</button><h1 class="skraceno">' + esc(t.naziv || 'Beep test') + '</h1></div>' +
+      '<div class="zaglavlje"><button class="tiho" id="nazad">‹ Nazad</button><h1 class="skraceno">' +
+      esc(t.naziv || v.naziv) + '</h1></div>' +
       '<div class="kartica slab">' +
-      [fmtDatumVreme(t.datum), t.lokacija ? esc(t.lokacija) : '', rez.length + ' učesnika', esc(t.protokol || '20m MSFT')]
+      [esc(v.naziv), fmtDatumVreme(t.datum), t.lokacija ? esc(t.lokacija) : '', rez.length + ' učesnika']
         .filter(Boolean).join(' · ') +
       (t.beleska ? '<div style="margin-top:6px">' + esc(t.beleska) + '</div>' : '') + '</div>' +
       '<div class="kartica"><div class="uvijeno"><table class="tabela">' +
-      '<tr><th>#</th><th>Igrač</th><th class="broj">Nivo</th><th class="broj">Deonica</th><th class="broj">m</th><th class="broj">VO2max</th><th></th></tr>' +
+      '<tr><th>#</th><th>Igrač</th>' +
+      v.kolonePrikaz.map(function (k) { return '<th class="broj">' + esc(k) + '</th>'; }).join('') +
+      '<th></th></tr>' +
       rez.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td>' +
           '<td class="skraceno"><a href="#/igrac/' + esc(r.igracId) + '">' + esc(r.ime) + '</a>' +
           (r.grupa ? '<div class="slab">' + esc(r.grupa) + '</div>' : '') + '</td>' +
-          '<td class="broj"><b>' + P.fmtLevel(r.nivo, r.deonica) + '</b></td>' +
-          '<td class="broj">' + r.ukupnoDeonica + '</td>' +
-          '<td class="broj">' + r.metara + '</td>' +
-          '<td class="broj">' + (r.vo2max != null ? r.vo2max : '—') + '</td>' +
+          v.redPrikaz(r).map(function (c) {
+            return '<td class="broj">' + (c.jako ? '<b>' + esc(c.tekst) + '</b>' : esc(c.tekst)) + '</td>';
+          }).join('') +
           '<td>' + statusZnak(r.status) + '</td></tr>';
       }).join('') +
       '</table></div></div>' +
@@ -894,24 +931,25 @@
 
     app.querySelector('#nazad').addEventListener('click', function () { idi('#/testovi'); });
     app.querySelector('#csv').addEventListener('click', function () {
-      var red = [['igrac', 'broj', 'grupa', 'nivo', 'deonica', 'ukupno_deonica', 'metara', 'vreme_s', 'vo2max', 'status', 'beleska']];
-      rez.forEach(function (r) {
-        red.push([r.ime, r.broj, r.grupa, r.nivo, r.deonica, r.ukupnoDeonica, r.metara,
-          Math.round(r.vremeS || 0), r.vo2max == null ? '' : r.vo2max, r.status, r.beleska || '']);
-      });
-      var csv = red.map(function (r) {
-        return r.map(function (c) {
-          var v = c == null ? '' : String(c);
-          return /[",;\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-        }).join(';');
-      }).join('\r\n');
-      if (preuzmi('beep-test-' + (t.datum || '').slice(0, 10) + '.csv', '﻿' + csv, 'text/csv')) poruka('CSV preuzet.');
+      var ime = v.id + '-' + (t.datum || '').slice(0, 10) + '.csv';
+      if (preuzmi(ime, '\ufeff' + global.DB.csvTesta(t), 'text/csv')) poruka('CSV preuzet.');
     });
     app.querySelector('#obrisi').addEventListener('click', function () {
       if (!global.confirm('Obrisati ovo testiranje i sve njegove rezultate?')) return;
       global.DB.obrisiTest(t.id);
       poruka('Test obrisan.');
       idi('#/testovi');
+    });
+  }
+
+  /* Poredak po rezultatu - smer zavisi od toga sta je kod tog testa bolje. */
+  function poredak(rezultati, v) {
+    return rezultati.slice().sort(function (a, b) {
+      var x = v.glavna(a), y = v.glavna(b);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return v.boljeJe === 'manje' ? x - y : y - x;
     });
   }
 

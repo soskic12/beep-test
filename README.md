@@ -106,6 +106,7 @@ manifest.webmanifest      podaci za instalaciju na telefon
 sw.js                     offline kes
 icons/                    ikone aplikacije
 js/protocol.js            tabela nivoa, deonice, VO2max, pretvaranja
+js/testovi.js             registar testova: sta je koji test i sta je bolje
 js/data.js                cuvanje igraca, testova i podesavanja
 js/audio.js               signali (Web Audio) i govorna najava nivoa
 js/run.js                 motor testiranja: sat, opomene, ispadanja
@@ -113,6 +114,7 @@ js/app.js                 ekrani i ruter
 test/protokol.test.js     provera racuna
 test/motor.test.js        provera motora testiranja
 test/podaci.test.js       provera cuvanja, izvoza i uvoza
+test/registar.test.js     provera registra testova
 test/ekrani.html          provera ekrana, u pregledacu
 ```
 
