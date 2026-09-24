@@ -102,3 +102,14 @@ test('vreme sprinta ne gubi decimale u CSV-u', () => {
   assert.deepStrictEqual(sprint.red({ pokusaji: [3.214, 3.09, ''], najbolji: 3.09 }),
     [3.09, 3.21, 3.09, '']);
 });
+
+test('testovi na vreme mogu da se mere telefonom, ostali ne', () => {
+  ['sprint-20', 'sprint-34', 'lane-agility', 't-test', 'agilnost-505'].forEach((id) => {
+    assert.strictEqual(T.vrsta(id).stoperica, true, id + ' se meri na vreme');
+  });
+  ['skok-mesto', 'skok-zalet'].forEach((id) => {
+    assert.ok(!T.vrsta(id).stoperica, id + ' se meri lenjirom, ne štopericom');
+  });
+  assert.ok(!T.vrsta('mere').stoperica);
+  assert.ok(!T.vrsta('beep').stoperica);
+});

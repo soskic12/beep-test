@@ -34,6 +34,15 @@ Beep test ima svoj ekran testiranja (sat, signali, pločice). Ostali se unose po
 izabere se test, pa se po igraču upišu pokušaji — najbolji se računa sam, i zna se da je kod
 sprinta i agilnosti **manji broj bolji**. Igrači kojima ništa nije upisano se ne čuvaju.
 
+Kod testova koji se mere na vreme uz svako polje stoji **⏱ štoperica**: dugme *Kreni*, pa
+*Stani*, pa *Upiši*. Merenje rukom greši oko 0,2 s — na 20 m to je osetan deo rezultata, pa za
+pravo testiranje i dalje vrede foto-ćelije, a štoperica je tu kad drugog nema.
+
+**Merenje tela** je povezano sa kartonom igrača: zatečena visina i težina se ponude pri unosu,
+a izmerene se upisuju nazad u karton — ali samo ako je to najskorije merenje, da naknadno
+upisano staro merenje ne pregazi novije. Raspon ruku i dohvat stoje uz igrača sa datumom
+merenja i čuvaju istoriju kroz sezone.
+
 Svaki test ima svoj grafikon napretka u kartonu igrača i svoje kolone u CSV-u. Šta je koji
 test, u čemu se meri i šta je bolji rezultat stoji na jednom mestu — u `js/testovi.js`.
 

@@ -364,7 +364,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
           'linija spaja oba merenja', tacke ? tacke.getAttribute('points') : '(nema linije)');
         var t = d.getElementById('app').textContent;
         tvrdi(/u odnosu na prethodni/.test(t) && /bolje za 8 deonica/.test(t),
-          'pise koliko je napredovao i u kom smeru', t.replace(/s+/g, ' ').slice(0, 200));
+          'pise koliko je napredovao i u kom smeru', t.replace(/\s+/g, ' ').slice(0, 200));
         posle(100, oporavak);
       });
     });
@@ -444,6 +444,55 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
     jednako(kartice.length, 3, 'svaki igrač ima svoj red za unos');
     var polja = kartice[0].querySelectorAll('input[data-pokusaj]');
     jednako(polja.length, 3, 'sprint 20 m ima tri pokušaja');
+    tvrdi(!!kartice[0].querySelector('button[data-stoperica]'),
+      'uz svaki pokušaj stoji štoperica', kartice[0].innerHTML.slice(0, 80));
+    merenjeStopericom();
+  }
+
+  /* Stoperica: kreni, sacekaj, stani, upisi - sa pravim protokom vremena. */
+  function merenjeStopericom() {
+    korak('9a. Štoperica');
+    var kartice = d.querySelectorAll('.kartica.unos[data-id]');
+    kartice[0].querySelector('button[data-stoperica="0"]').click();
+    posle(200, function () {
+      var omot = d.querySelector('.stoperica');
+      tvrdi(!!omot, 'štoperica se otvara preko celog ekrana', '-');
+      if (!omot) { rucniUnos(); return; }
+      tvrdi(omot.textContent.indexOf('1. pokušaj') >= 0, 'piše za koji je pokušaj', omot.textContent.slice(0, 60));
+      tvrdi(omot.textContent.indexOf('0,2 s') >= 0, 'upozorava na grešku merenja rukom', '-');
+      omot.querySelector('#sKreni').click();
+      posle(500, function () {
+        var omot2 = d.querySelector('.stoperica');
+        var pre = omot2.querySelector('#sVreme').textContent;
+        tvrdi(pre !== '0,00', 'vreme teče dok štoperica radi', pre);
+        omot2.querySelector('#sStani').click();
+        posle(200, function () {
+          var omot3 = d.querySelector('.stoperica');
+          var stalo = omot3.querySelector('#sVreme').textContent;
+          var broj = Number(stalo.replace(',', '.'));
+          tvrdi(broj > 0.3 && broj < 1.5, 'izmereno je oko pola sekunde koliko je i čekano', stalo);
+          var opet = omot3.querySelector('#sVreme').textContent;
+          tvrdi(opet === stalo, 'posle „Stani" vreme više ne teče', opet + ' / ' + stalo);
+          omot3.querySelector('#sUpisi').click();
+          posle(200, function () {
+            tvrdi(!d.querySelector('.stoperica'), 'posle upisa se štoperica zatvara', '-');
+            var polje = d.querySelectorAll('.kartica.unos[data-id]')[0].querySelectorAll('input[data-pokusaj]')[0];
+            tvrdi(polje.value.indexOf(',') > 0, 'izmereno vreme je upisano u polje, sa zarezom', polje.value);
+            tvrdi(Math.abs(Number(polje.value.replace(',', '.')) - broj) < 0.01,
+              'u polju stoji baš ono što je štoperica pokazala', polje.value + ' / ' + stalo);
+            var najbolji = d.querySelectorAll('.kartica.unos[data-id]')[0].querySelector('[data-polje="najbolji"]').textContent;
+            tvrdi(najbolji.indexOf('s') > 0, 'najbolji se odmah preračunava', najbolji);
+            rucniUnos();
+          });
+        });
+      });
+    });
+  }
+
+  function rucniUnos() {
+    korak('9b. Ručni unos');
+    var kartice = d.querySelectorAll('.kartica.unos[data-id]');
+    var polja = kartice[0].querySelectorAll('input[data-pokusaj]');
 
     /* prvi igrac: tri pokusaja, sa zarezom kao na nasoj tastaturi */
     upisi(polja[0], '3,21');
@@ -524,7 +573,70 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
         tvrdi(tekst.indexOf('niže je bolje') >= 0,
           'uz grafikon sprinta piše da je niže bolje', '-');
         tvrdi(/slabije za 0,21 s/.test(tekst),
-          'sporije vreme je slabiji rezultat, iako je broj veći', tekst.replace(/s+/g, ' ').slice(0, 220));
+          'sporije vreme je slabiji rezultat, iako je broj veći', tekst.replace(/\s+/g, ' ').slice(0, 220));
+        merenjeTela(igrac);
+      });
+    });
+  }
+
+  /* ---------- 12. merenje tela ---------- */
+
+  function merenjeTela(igrac) {
+    korak('12. Merenje tela');
+    w.DB.izmeniIgraca(igrac.id, { visina: '190', tezina: '80' });
+    w.location.hash = '#/igraci';
+    posle(200, function () {
+      w.location.hash = '#/unos/mere';
+      posle(350, function () {
+        var kart = null;
+        Array.prototype.forEach.call(d.querySelectorAll('.kartica.unos[data-id]'), function (k) {
+          if (k.getAttribute('data-id') === igrac.id) kart = k;
+        });
+        tvrdi(!!kart, 'igrač ima red za merenje', '-');
+        if (!kart) { kraj(); return; }
+
+        var polja = kart.querySelectorAll('input[data-mera]');
+        jednako(polja.length, 4, 'meri se visina, težina, raspon i dohvat');
+        tvrdi(!kart.querySelector('button[data-stoperica]'), 'merenje nema štopericu', '-');
+        var visina = kart.querySelector('input[data-mera="visina"]');
+        jednako(visina.value, '190', 'zatečena visina iz kartona je već ponuđena');
+        jednako(kart.querySelector('input[data-mera="tezina"]').value, '80', 'i težina');
+
+        upisi(visina, '192,5');
+        upisi(kart.querySelector('input[data-mera="tezina"]'), '84');
+        upisi(kart.querySelector('input[data-mera="raspon"]'), '201');
+        upisi(kart.querySelector('input[data-mera="dohvat"]'), '252');
+        d.querySelector('#unaziv').value = 'Merenje u decembru';
+        d.querySelector('#usacuvaj').click();
+        posle(400, function () { proveriMerenje(igrac); });
+      });
+    });
+  }
+
+  function proveriMerenje(igrac) {
+    korak('13. Merenje u kartonu igrača');
+    var p = w.DB.igrac(igrac.id);
+    jednako(p.visina, '192.5', 'izmerena visina je upisana i u karton');
+    jednako(p.tezina, '84', 'i težina');
+
+    var zadnje = w.DB.poslednjeMerenje(igrac.id);
+    tvrdi(!!zadnje, 'merenje je sačuvano kao svoj test', '-');
+    jednako(zadnje.vrednosti.raspon, 201, 'raspon ruku stoji u merenju');
+    jednako(zadnje.vrednosti.dohvat, 252, 'i dohvat');
+
+    w.location.hash = '#/igraci';
+    posle(200, function () {
+      w.location.hash = '#/igrac/' + igrac.id;
+      posle(350, function () {
+        var tekst = d.getElementById('app').textContent.replace(/\s+/g, ' ');
+        tvrdi(tekst.indexOf('192.5 cm') >= 0, 'karton pokazuje novu visinu', tekst.slice(0, 140));
+        tvrdi(tekst.indexOf('84 kg') >= 0, 'i novu težinu', '-');
+        tvrdi(/raspon ruku 201,0 cm/.test(tekst), 'i raspon ruku iz merenja', tekst.slice(0, 200));
+        tvrdi(/dohvat u stojećem stavu 252,0 cm/i.test(tekst), 'i dohvat', '-');
+        tvrdi(tekst.indexOf('mereno') >= 0, 'piše kad je mereno', '-');
+        var naslovi = Array.prototype.map.call(d.querySelectorAll('#app h2'), function (h) { return h.textContent; });
+        tvrdi(naslovi.indexOf('Merenje (antropometrija)') >= 0,
+          'merenje ima i svoju karticu sa istorijom', naslovi.join(', '));
         kraj();
       });
     });
@@ -535,7 +647,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
     ishod.textContent = 'radi…';
     napraviKopiju();
     okvir.src = '../index.html#/igraci';
-    posle(40000, isteklo);
+    posle(60000, isteklo);
   }
 
   /* ako je ranija provera prekinuta, podaci cekaju da budu vraceni */

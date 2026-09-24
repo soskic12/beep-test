@@ -332,9 +332,7 @@
       '<h1 class="skraceno">' + esc(p.ime) + '</h1>' +
       '<a class="dugme malo" href="#/igrac/' + esc(p.id) + '/izmena">Izmeni</a></div>' +
       '<div class="kartica slab">' +
-      [p.broj ? 'broj ' + esc(p.broj) : '', esc(p.grupa), god != null ? god + ' god.' : '',
-        p.visina ? esc(p.visina) + ' cm' : '', p.tezina ? esc(p.tezina) + ' kg' : '']
-        .filter(Boolean).join(' · ') +
+      zaglavljeIgraca(p, god) +
       (p.beleska ? '<div style="margin-top:6px">' + esc(p.beleska) + '</div>' : '') +
       '</div>' +
       (sviRez.length ? poVrstama(sviRez).map(karticaVrste).join('')
@@ -357,6 +355,27 @@
       poruka('Obrisano.');
       idi('#/igraci');
     });
+  }
+
+  /* Red sa podacima igraca: uz osnovno stoji i poslednje merenje tela. */
+  function zaglavljeIgraca(p, god) {
+    var zadnje = global.DB.poslednjeMerenje(p.id);
+    var mere = zadnje && zadnje.vrednosti ? zadnje.vrednosti : {};
+    var v = global.Testovi.vrsta('mere');
+    var delovi = [
+      p.broj ? 'broj ' + esc(p.broj) : '',
+      esc(p.grupa),
+      god != null ? god + ' god.' : '',
+      p.visina ? esc(p.visina) + ' cm' : '',
+      p.tezina ? esc(p.tezina) + ' kg' : ''
+    ];
+    v.polja.forEach(function (f) {
+      if (v.uIgraca && v.uIgraca[f.kljuc]) return;        // visina i tezina vec stoje gore
+      if (mere[f.kljuc] == null) return;
+      delovi.push(esc(f.naziv.toLowerCase()) + ' ' + global.Testovi.broj(Number(mere[f.kljuc]), f.decimala) + ' ' + esc(f.jedinica));
+    });
+    return delovi.filter(Boolean).join(' · ') +
+      (zadnje ? '<div class="slab" style="margin-top:4px">mereno ' + fmtDatum(zadnje.datum) + '</div>' : '');
   }
 
   /* Rezultati razvrstani po vrsti testa, redom kojim su poslednji put radjeni. */
@@ -1055,11 +1074,17 @@
     var polja = v.unos === 'pokusaji'
       ? Array.apply(null, Array(v.pokusaja)).map(function (x, i) {
           return '<div class="rast"><label class="slab" for="' + esc(p.id) + '-' + i + '">' + (i + 1) + '. pokušaj</label>' +
-            '<input id="' + esc(p.id) + '-' + i + '" data-pokusaj="' + i + '" inputmode="decimal" placeholder="' + esc(v.jedinica) + '"></div>';
+            '<div class="red" style="gap:4px">' +
+            '<input class="rast" id="' + esc(p.id) + '-' + i + '" data-pokusaj="' + i + '" inputmode="decimal" placeholder="' + esc(v.jedinica) + '">' +
+            (v.stoperica ? '<button class="malo" type="button" data-stoperica="' + i + '" title="štoperica">⏱</button>' : '') +
+            '</div></div>';
         })
       : v.polja.map(function (f) {
+          /* zatecena vrednost se ponudi, pa se menja samo ono sto je izmereno */
+          var sad = zatecenaMera(p, v, f);
           return '<div class="rast"><label class="slab" for="' + esc(p.id) + '-' + esc(f.kljuc) + '">' + esc(f.naziv) + '</label>' +
-            '<input id="' + esc(p.id) + '-' + esc(f.kljuc) + '" data-mera="' + esc(f.kljuc) + '" inputmode="decimal" placeholder="' + esc(f.jedinica) + '"></div>';
+            '<input id="' + esc(p.id) + '-' + esc(f.kljuc) + '" data-mera="' + esc(f.kljuc) + '" inputmode="decimal"' +
+            ' value="' + esc(sad) + '" placeholder="' + esc(f.jedinica) + '"></div>';
         });
 
     return '<div class="kartica unos" data-id="' + esc(p.id) + '">' +
@@ -1069,6 +1094,96 @@
       '</div>' +
       '<div class="red" style="gap:8px;margin-top:6px">' + polja.join('') + '</div>' +
       '</div>';
+  }
+
+  app.addEventListener('click', function (e) {
+    var m = (global.location.hash || '').match(/^#\/unos\/([^/]+)$/);
+    if (!m) return;
+    var dugme = e.target.closest('button[data-stoperica]');
+    if (!dugme) return;
+    var kart = dugme.closest('.kartica[data-id]');
+    if (!kart) return;
+    var igrac = global.DB.igrac(kart.getAttribute('data-id'));
+    var i = parseInt(dugme.getAttribute('data-stoperica'), 10);
+    var polje = kart.querySelectorAll('input[data-pokusaj]')[i];
+    stoperica(global.Testovi.vrsta(m[1]), igrac, i, polje);
+  });
+
+  /* Stoperica preko celog ekrana: na terenu se pogadja i bez gledanja.
+     Merenje rukom nosi oko 0,2 s greske - zato tako i pise na ekranu. */
+  function stoperica(v, igrac, redni, polje) {
+    var pocetak = null, stalo = null, sat = null;
+    var omot = document.createElement('div');
+    omot.className = 'odbrojavanje stoperica';
+    document.body.appendChild(omot);
+    crtaj();
+
+    function proteklo() {
+      if (pocetak == null) return 0;
+      return ((stalo == null ? global.performance.now() : stalo) - pocetak) / 1000;
+    }
+
+    function crtaj() {
+      var t = proteklo();
+      omot.innerHTML =
+        '<div class="kartica" style="min-width:280px;max-width:92vw;text-align:center">' +
+        '<div class="slab">' + esc(igrac ? igrac.ime : '') + ' · ' + (redni + 1) + '. pokušaj</div>' +
+        '<div class="broj" id="sVreme">' + global.Testovi.broj(t, 2) + '</div>' +
+        '<div class="slab">sekundi</div>' +
+        (pocetak == null
+          ? '<div class="dugmad puno razmak"><button class="glavno" id="sKreni">Kreni</button></div>' +
+            '<div class="slab">Merenje rukom greši oko 0,2 s — za pravo testiranje bolje foto-ćelije.</div>'
+          : (stalo == null
+            ? '<div class="dugmad puno razmak"><button class="opasno" id="sStani">Stani</button></div>'
+            : '<div class="dugmad puno razmak"><button class="glavno" id="sUpisi">Upiši</button>' +
+              '<button id="sPonovi">Ponovo</button></div>')) +
+        '<div class="dugmad puno"><button class="tiho" id="sOdustani">Odustani</button></div>' +
+        '</div>';
+      vezi();
+    }
+
+    function vezi() {
+      var kreni = omot.querySelector('#sKreni');
+      if (kreni) kreni.addEventListener('click', function () {
+        pocetak = global.performance.now();
+        stalo = null;
+        crtaj();
+        sat = global.setInterval(function () {
+          var polje2 = omot.querySelector('#sVreme');
+          if (polje2) polje2.textContent = global.Testovi.broj(proteklo(), 2);
+        }, 31);
+      });
+      var stani = omot.querySelector('#sStani');
+      if (stani) stani.addEventListener('click', function () {
+        stalo = global.performance.now();
+        zaustavi();
+        crtaj();
+      });
+      var upisi = omot.querySelector('#sUpisi');
+      if (upisi) upisi.addEventListener('click', function () {
+        polje.value = global.Testovi.broj(proteklo(), 2);
+        polje.dispatchEvent(new Event('input', { bubbles: true }));
+        zatvori();
+      });
+      var ponovi = omot.querySelector('#sPonovi');
+      if (ponovi) ponovi.addEventListener('click', function () {
+        pocetak = null; stalo = null;
+        crtaj();
+      });
+      omot.querySelector('#sOdustani').addEventListener('click', zatvori);
+    }
+
+    function zaustavi() { if (sat) { global.clearInterval(sat); sat = null; } }
+    function zatvori() { zaustavi(); omot.remove(); }
+  }
+
+  /* Sta je kod ovog igraca poslednje izmereno - iz kartona ili iz merenja. */
+  function zatecenaMera(p, v, f) {
+    var uKartonu = v.uIgraca && v.uIgraca[f.kljuc] ? p[v.uIgraca[f.kljuc]] : null;
+    if (uKartonu != null && uKartonu !== '') return uKartonu;
+    var zadnje = global.DB.poslednjeMerenje(p.id);
+    var vrednost = zadnje && zadnje.vrednosti ? zadnje.vrednosti[f.kljuc] : null;
+    return vrednost == null ? '' : vrednost;
   }
 
   /* Broj iz polja: prihvata i zarez, jer tako pise na nasoj tastaturi. */

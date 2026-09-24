@@ -154,6 +154,7 @@
   function sacuvajTest(t) {
     var s = get();
     nadopuni(t);
+    upisiUKarton(t);
     if (t.id) {
       for (var i = 0; i < s.testovi.length; i++) {
         if (s.testovi[i].id === t.id) { s.testovi[i] = t; save(); return t; }
@@ -163,6 +164,38 @@
     s.testovi.push(t);
     save();
     return t;
+  }
+
+  /* Ako vrsta testa kaze da neko merenje stoji i u kartonu igraca (visina,
+     tezina), prepisuje se tamo - ali samo ako je ovo najskorije merenje, da
+     naknadni unos starog merenja ne pregazi novije. */
+  function upisiUKarton(t) {
+    var v = global.Testovi.vrsta(t.vrsta);
+    if (!v.uIgraca) return;
+    (t.rezultati || []).forEach(function (r) {
+      var p = igrac(r.igracId);
+      if (!p || !r.vrednosti) return;
+      if (imaNovijeMerenje(r.igracId, t)) return;
+      Object.keys(v.uIgraca).forEach(function (kljuc) {
+        var vrednost = r.vrednosti[kljuc];
+        if (vrednost == null || vrednost === '') return;
+        p[v.uIgraca[kljuc]] = String(vrednost);
+      });
+    });
+  }
+
+  function imaNovijeMerenje(igracId, ovaj) {
+    return get().testovi.some(function (t) {
+      if (t.id === ovaj.id || t.vrsta !== ovaj.vrsta) return false;
+      if ((t.datum || '') <= (ovaj.datum || '')) return false;
+      return (t.rezultati || []).some(function (r) { return r.igracId === igracId; });
+    });
+  }
+
+  /* Poslednje merenje tela jednog igraca - za karton i za unos. */
+  function poslednjeMerenje(igracId) {
+    var svi = rezultatiIgraca(igracId, 'mere');
+    return svi.length ? svi[svi.length - 1] : null;
   }
 
   function obrisiTest(id) {
@@ -317,6 +350,7 @@
     uvoz: uvoz,
     csv: csv,
     csvTesta: csvTesta,
-    vrsteUIstoriji: vrsteUIstoriji
+    vrsteUIstoriji: vrsteUIstoriji,
+    poslednjeMerenje: poslednjeMerenje
   };
 })(window);

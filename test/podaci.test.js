@@ -337,3 +337,52 @@ test('podesavanja se pamte, a nepoznata se dopunjuju podrazumevanim', () => {
   assert.strictEqual(w.DB.podesavanja().odbrojavanje, 10);
   assert.strictEqual(w.DB.podesavanja().zvuk, true, 'sto nije upisano ostaje podrazumevano');
 });
+
+/* ---------- merenje tela i karton igraca ---------- */
+
+function upisiMerenje(w, igracId, datum, vrednosti, naziv) {
+  return w.DB.sacuvajTest({
+    vrsta: 'mere',
+    naziv: naziv || 'Merenje',
+    datum: datum,
+    rezultati: [{ igracId: igracId, ime: 'A', vrednosti: vrednosti, status: 'zavrsio' }]
+  });
+}
+
+test('izmerena visina i tezina se upisuju i u karton igraca', () => {
+  const w = napraviProzor();
+  const p = w.DB.dodajIgraca({ ime: 'A', visina: '190', tezina: '80' });
+  upisiMerenje(w, p.id, '2025-09-01T10:00:00.000Z', { visina: 192.5, tezina: 84, raspon: 201, dohvat: 252 });
+
+  const posle = w.DB.igrac(p.id);
+  assert.strictEqual(posle.visina, '192.5', 'karton prati poslednje merenje');
+  assert.strictEqual(posle.tezina, '84');
+  assert.strictEqual(w.DB.poslednjeMerenje(p.id).vrednosti.raspon, 201,
+    'raspon i dohvat ostaju u merenju, ne prepisuju se u karton');
+});
+
+test('naknadno upisano staro merenje ne gazi novije', () => {
+  const w = napraviProzor();
+  const p = w.DB.dodajIgraca({ ime: 'A' });
+  upisiMerenje(w, p.id, '2025-09-01T10:00:00.000Z', { visina: 192.5, tezina: 84 }, 'septembar');
+  upisiMerenje(w, p.id, '2025-03-01T10:00:00.000Z', { visina: 189, tezina: 79 }, 'mart, upisano kasnije');
+
+  assert.strictEqual(w.DB.igrac(p.id).visina, '192.5', 'u kartonu ostaje novije merenje');
+  assert.strictEqual(w.DB.igrac(p.id).tezina, '84');
+  assert.strictEqual(w.DB.poslednjeMerenje(p.id).naziv, 'septembar');
+  assert.strictEqual(w.DB.rezultatiIgraca(p.id, 'mere').length, 2, 'oba merenja ostaju u istoriji');
+});
+
+test('prazno polje u merenju ne brise ono sto vec stoji u kartonu', () => {
+  const w = napraviProzor();
+  const p = w.DB.dodajIgraca({ ime: 'A', visina: '190', tezina: '80' });
+  upisiMerenje(w, p.id, '2025-09-01T10:00:00.000Z', { visina: 192.5 });   // tezina nije merena
+  assert.strictEqual(w.DB.igrac(p.id).visina, '192.5');
+  assert.strictEqual(w.DB.igrac(p.id).tezina, '80', 'stara tezina ostaje');
+});
+
+test('igrac bez merenja nema poslednje merenje', () => {
+  const w = napraviProzor();
+  const p = w.DB.dodajIgraca({ ime: 'A' });
+  assert.strictEqual(w.DB.poslednjeMerenje(p.id), null);
+});

@@ -34,6 +34,8 @@
 
   function saPokusajima(def) {
     def.unos = 'pokusaji';
+    /* Sto se meri na vreme moze da se izmeri i telefonom. */
+    def.stoperica = def.jedinica === 's';
     def.glavna = function (r) {
       return r.najbolji == null ? najboljiPokusaj(r.pokusaji, def.boljeJe) : r.najbolji;
     };
@@ -231,6 +233,8 @@
     opis: 'visina, težina, raspon ruku i dohvat',
     jedinica: 'cm',
     boljeJe: 'vise',
+    /* Sta od izmerenog stoji i u kartonu igraca, da se ne unosi dvaput. */
+    uIgraca: { visina: 'visina', tezina: 'tezina' },
     polja: [
       { kljuc: 'visina', naziv: 'Visina', jedinica: 'cm', decimala: 1 },
       { kljuc: 'tezina', naziv: 'Težina', jedinica: 'kg', decimala: 1 },
