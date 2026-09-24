@@ -162,16 +162,44 @@ test('kad ispadne i poslednji igrac, test se sam zavrsava', () => {
   assert.strictEqual(krajeva, 1);
 });
 
-test('rucni kraj upisuje svim preostalima dostignutu deonicu', () => {
+test('rucni kraj upisuje onima koji jos trce dostignutu deonicu', () => {
   const { r, P } = pokreni(['A', 'B']);
   naSekundu(r, P.SHUTTLES[29].endAt + 0.1);
-  r.oznaci('i1');                       // B dobija opomenu pa ga zatekne kraj
   r.zavrsi('rucno');
   assert.strictEqual(r.status, 'gotovo');
   r.ucesnici.forEach((u) => {
     assert.strictEqual(u.status, 'zavrsio');
     assert.strictEqual(u.zavrseno, 30);
   });
+});
+
+test('igrac sa neskinutom opomenom ne dobija rezultat najboljeg', () => {
+  const { r, P } = pokreni(['Zaustavljen', 'Istrcao']);
+  naSekundu(r, P.SHUTTLES[19].endAt + 0.1);
+  r.oznaci('i0');                              // trener ga je zaustavio na 20 deonica
+  assert.strictEqual(r.ucesnici[0].status, 'opomena');
+
+  naSekundu(r, P.SHUTTLES[59].endAt + 0.1);     // test je isao jos dugo
+  r.zavrsi('kraj-testa');
+
+  assert.strictEqual(r.ucesnici[0].zavrseno, 20,
+    'upisuje se trenutak opomene - poslednji za koji ima dokaza');
+  assert.strictEqual(r.ucesnici[0].status, 'ispao');
+  assert.strictEqual(r.ucesnici[1].zavrseno, 60, 'ko je trcao do kraja dobija ceo rezultat');
+  assert.strictEqual(r.ucesnici[1].status, 'zavrsio');
+  assert.notStrictEqual(r.ucesnici[0].zavrseno, r.ucesnici[1].zavrseno,
+    'zaustavljen igrac ne sme da zavrsi sa istim rezultatom kao najbolji');
+});
+
+test('skinuta opomena vraca igraca u pun rezultat', () => {
+  const { r, P } = pokreni(['A']);
+  naSekundu(r, P.SHUTTLES[19].endAt + 0.1);
+  r.oznaci('i0');
+  r.skiniOpomenu('i0');                        // ipak je stigao na liniju
+  naSekundu(r, P.SHUTTLES[59].endAt + 0.1);
+  r.zavrsi('kraj-testa');
+  assert.strictEqual(r.ucesnici[0].zavrseno, 60);
+  assert.strictEqual(r.ucesnici[0].status, 'zavrsio');
 });
 
 /* ---------- pauza i nastavak ---------- */

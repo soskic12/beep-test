@@ -20,7 +20,21 @@
       ctx = new C();
       master = ctx.createGain();
       master.gain.value = 0.9;
-      master.connect(ctx.destination);
+      /* Zvucnik telefona je mali i tih: kompresor podigne sve sto je tise od
+         vrha, pa se signal probije kroz vetar i dreku, a da ne puca. */
+      var kompresor = ctx.createDynamicsCompressor();
+      kompresor.threshold.value = -20;
+      kompresor.knee.value = 6;
+      kompresor.ratio.value = 12;
+      kompresor.attack.value = 0.002;
+      kompresor.release.value = 0.12;
+      /* Kompresor sam po sebi samo stisava - pojacanje posle njega je ono
+         sto bip cini glasnijim. Izmereno: vrh ostaje na 0,85, ne puca. */
+      var nadoknada = ctx.createGain();
+      nadoknada.gain.value = 3;
+      master.connect(kompresor);
+      kompresor.connect(nadoknada);
+      nadoknada.connect(ctx.destination);
     }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
@@ -32,16 +46,16 @@
     return global.performance.now() / 1000;
   }
 
-  function ton(kada, hz, trajanje, jacina) {
+  function ton(kada, hz, trajanje, jacina, oblik) {
     if (!ctx || !ukljucen) return;
     // "kada" je u vremenu testa; prevodimo ga u vreme audio konteksta
     var t = Math.max(ctx.currentTime + 0.001, ctx.currentTime + (kada - now()));
     var osc = ctx.createOscillator();
     var g = ctx.createGain();
-    osc.type = 'sine';
+    osc.type = oblik || 'sine';
     osc.frequency.setValueAtTime(hz, t);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(jacina || 0.6, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(jacina || 0.6, t + 0.002);   // ostar napad nosi dalje
     g.gain.exponentialRampToValueAtTime(0.0001, t + trajanje);
     osc.connect(g);
     g.connect(master);
@@ -66,27 +80,35 @@
     try { if (global.speechSynthesis) global.speechSynthesis.cancel(); } catch (e) { /* nema veze */ }
   }
 
+  /* Bip koji se cuje na terenu: pravougaoni talas nosi harmonike koje mali
+     zvucnik ume da izgura, oktava iznad dodaje ostrinu, a kratko traje da ne
+     zvuci kao obavestenje sa telefona. */
+  function prodoran(kada, hz, trajanje) {
+    ton(kada, hz, trajanje, 0.5, 'square');
+    ton(kada, hz * 2, trajanje * 0.8, 0.22, 'sine');
+  }
+
   /* vrste: 'deonica' (kraj deonice), 'nivo' (novi nivo), 'odbrojavanje', 'start', 'kraj' */
   function bip(kada, vrsta) {
     switch (vrsta) {
       case 'nivo':
-        ton(kada, 1200, 0.18);
-        ton(kada + 0.22, 1200, 0.18);
-        ton(kada + 0.44, 1600, 0.35);
+        prodoran(kada, 1175, 0.16);
+        prodoran(kada + 0.21, 1175, 0.16);
+        prodoran(kada + 0.42, 1568, 0.3);
         break;
       case 'odbrojavanje':
-        ton(kada, 700, 0.12, 0.4);
+        ton(kada, 784, 0.12, 0.45, 'triangle');
         break;
       case 'start':
-        ton(kada, 1600, 0.5);
+        prodoran(kada, 1568, 0.4);
         break;
       case 'kraj':
-        ton(kada, 900, 0.3);
-        ton(kada + 0.35, 700, 0.3);
-        ton(kada + 0.7, 500, 0.6);
+        prodoran(kada, 880, 0.26);
+        prodoran(kada + 0.32, 698, 0.26);
+        prodoran(kada + 0.64, 523, 0.5);
         break;
       default:
-        ton(kada, 1000, 0.22);
+        prodoran(kada, 1046, 0.16);
     }
   }
 

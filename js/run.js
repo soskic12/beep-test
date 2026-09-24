@@ -250,12 +250,20 @@
     global.Zvuk.otkazi();
     var zavrseno = this.zavrsenoDeonica();
     this.ucesnici.forEach(function (u) {
-      if (u.status === 'aktivan' || u.status === 'opomena') {
+      if (u.status === 'opomena') {
+        /* Opomena koja nije skinuta: poslednji trenutak za koji ima dokaza da je
+           igrac bio na liniji je trenutak opomene. Upisati mu trenutnu deonicu
+           znacilo bi dati mu rezultat najboljeg, a da niko to ne primeti. */
+        u.status = 'ispao';
+        u.zavrseno = u.opomenaNa == null ? zavrseno : u.opomenaNa;
+      } else if (u.status === 'aktivan') {
         u.status = 'zavrsio';
         u.zavrseno = zavrseno;
-        var ls = P.toLevelShuttle(u.zavrseno);
-        u.vremeS = P.timeAt(ls.level, ls.shuttle);
+      } else {
+        return;
       }
+      var ls = P.toLevelShuttle(u.zavrseno);
+      u.vremeS = P.timeAt(ls.level, ls.shuttle);
     });
     this._sacuvajTok();
     this.onPromena(this);

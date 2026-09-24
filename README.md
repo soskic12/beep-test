@@ -62,6 +62,10 @@ Na ekranu testiranja:
 
 Ako je opomena isključena u podešavanjima, prvi dodir odmah znači ispadanje.
 
+Opomena koja se ne skine i ne pretvori u ispadanje **nije** pun rezultat: kad se test
+završi, takvom igraču se upisuje deonica iz trenutka opomene — poslednji trenutak za koji
+postoji dokaz da je bio na liniji. Da dobije pun rezultat, mora mu se pritisnuti **✓ stigao**.
+
 Posle testa dolazi ekran rezultata gde se svaki rezultat može pomeriti za deonicu gore ili
 dole (`−` / `+`) ako je oznaka data prerano ili prekasno, promeniti status i dopisati beleška.
 Tek dugme **Sačuvaj test** upisuje testiranje u istoriju.
