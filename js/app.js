@@ -169,7 +169,9 @@
     { re: /^#\/novi-igrac$/, f: function () { ekranFormaIgraca(null); } },
     { re: /^#\/testovi$/, f: ekranTestovi },
     { re: /^#\/test\/([^/]+)$/, f: ekranTest },
-    { re: /^#\/novi$/, f: ekranPriprema },
+    { re: /^#\/novi$/, f: ekranIzborTesta },
+    { re: /^#\/novi\/beep$/, f: ekranPriprema },
+    { re: /^#\/unos\/([^/]+)$/, f: ekranUnos },
     { re: /^#\/tok$/, f: ekranTok },
     { re: /^#\/sazetak$/, f: ekranSazetak },
     { re: /^#\/podesavanja$/, f: ekranPodesavanja }
@@ -951,6 +953,183 @@
       if (y == null) return -1;
       return v.boljeJe === 'manje' ? x - y : y - x;
     });
+  }
+
+  /* ---------- izbor testa i unos rezultata ---------- */
+
+  var unosGrupa = null;      // filter grupe na ekranu unosa
+
+  function ekranIzborTesta() {
+    var tok = global.DB.ucitajTok();
+    var skorasnje = global.DB.vrsteUIstoriji();
+
+    app.innerHTML =
+      '<div class="zaglavlje"><h1>Novi test</h1></div>' +
+      (tok && tok.status !== 'gotovo' ?
+        '<div class="kartica"><b>Započet beep test koji nije završen</b>' +
+        '<div class="slab">' + esc(tok.naziv || 'bez naziva') + ' · ' + fmtDatumVreme(tok.datum) +
+        ' · ' + (tok.ucesnici || []).length + ' učesnika</div>' +
+        '<div class="dugmad puno razmak"><button class="glavno" id="nastaviTok">Nastavi</button>' +
+        '<button id="odbaciTok">Odbaci</button></div></div>' : '') +
+      global.Testovi.poGrupama().map(function (g) {
+        return '<div class="kartica testovi"><h2>' + esc(g.grupa) + '</h2>' +
+          g.vrste.map(function (v) {
+            var skoro = skorasnje.indexOf(v.id) >= 0 ? '<span class="slab"> · rađeno</span>' : '';
+            return '<a class="stavka klik" href="' + (v.unos === 'protokol' ? '#/novi/' + v.id : '#/unos/' + v.id) + '"' +
+              ' style="color:inherit;text-decoration:none">' +
+              '<div class="rast"><b>' + esc(v.naziv) + '</b>' + skoro +
+              '<div class="slab">' + esc(v.opis) + '</div></div><span class="slab">›</span></a>';
+          }).join('') + '</div>';
+      }).join('');
+
+    var nastavi = app.querySelector('#nastaviTok');
+    if (nastavi) {
+      nastavi.addEventListener('click', function () {
+        global.Zvuk.otkljucaj();
+        run = global.Run.izToka(tok, { onPromena: osveziTok, onKraj: krajTesta });
+        idi('#/tok');
+      });
+      app.querySelector('#odbaciTok').addEventListener('click', function () {
+        if (!global.confirm('Odbaciti započeto testiranje?')) return;
+        global.DB.obrisiTok();
+        ekranIzborTesta();
+      });
+    }
+  }
+
+  /* Unos rezultata za testove bez svog protokola: pokusaji ili merenja. */
+  function ekranUnos(vrstaId) {
+    var v = global.Testovi.vrsta(vrstaId);
+    if (v.unos === 'protokol') { idi('#/novi/' + v.id); return; }
+    var grupe = global.DB.grupe();
+    var svi = global.DB.igraci(false);
+    var lista = svi.filter(function (p) { return !unosGrupa || p.grupa === unosGrupa; });
+
+    app.innerHTML =
+      '<div class="zaglavlje"><button class="tiho" id="nazad">‹ Nazad</button><h1 class="skraceno">' + esc(v.naziv) + '</h1></div>' +
+      '<div class="kartica slab">' + esc(v.opis) + ' · ' +
+      (v.unos === 'pokusaji' ? v.pokusaja + ' pokušaja, računa se ' +
+        (v.boljeJe === 'manje' ? 'najkraće vreme' : 'najbolji') : 'merenje') + '</div>' +
+      '<div class="kartica">' +
+      '<label for="unaziv">Naziv</label><input id="unaziv" value="' + esc(v.naziv + ' ' + fmtDatum(new Date().toISOString())) + '">' +
+      '<label for="udatum">Datum</label><input id="udatum" type="date" value="' + danas() + '">' +
+      '<label for="umesto">Mesto</label><input id="umesto" placeholder="npr. sala, teren">' +
+      '<label for="ubeleska">Beleška</label><textarea id="ubeleska" placeholder="uslovi, oprema, sastav ekipe…"></textarea>' +
+      '</div>' +
+      (grupe.length ? '<div class="kartica"><label for="ugrupa">Grupa</label><select id="ugrupa">' +
+        '<option value="">— sve grupe —</option>' +
+        grupe.map(function (g) {
+          return '<option value="' + esc(g) + '"' + (g === unosGrupa ? ' selected' : '') + '>' + esc(g) + '</option>';
+        }).join('') + '</select></div>' : '') +
+      (lista.length ? lista.map(function (p) { return redUnosa(p, v); }).join('')
+        : '<div class="prazno">Nema igrača. Prvo ih dodaj u delu <b>Igrači</b>.</div>') +
+      '<div class="kartica slab">Igrači kojima ništa nije upisano se ne čuvaju.</div>' +
+      '<div class="dugmad puno razmak"><button class="glavno" id="usacuvaj">Sačuvaj rezultate</button></div>';
+
+    app.querySelector('#nazad').addEventListener('click', function () { idi('#/novi'); });
+    var pg = app.querySelector('#ugrupa');
+    if (pg) pg.addEventListener('change', function (e) { unosGrupa = e.target.value; ekranUnos(vrstaId); });
+
+    app.querySelector('#usacuvaj').addEventListener('click', function () { sacuvajUnos(v); });
+  }
+
+  /* Posle svakog upisa se odmah vidi koji je rezultat najbolji. Osluskivac
+     stoji jednom, na nivou modula - inace bi se gomilao pri svakom crtanju. */
+  app.addEventListener('input', function (e) {
+    var m = (global.location.hash || '').match(/^#\/unos\/([^/]+)$/);
+    if (!m) return;
+    var polje = e.target.closest('input[data-pokusaj]');
+    if (!polje) return;
+    var kart = polje.closest('.kartica[data-id]');
+    if (!kart) return;
+    var v = global.Testovi.vrsta(m[1]);
+    var vrednosti = Array.prototype.map.call(kart.querySelectorAll('input[data-pokusaj]'), function (x) {
+      return uBroj(x.value);
+    });
+    var najbolji = global.Testovi.najboljiPokusaj(vrednosti, v.boljeJe);
+    var polje2 = kart.querySelector('[data-polje="najbolji"]');
+    if (polje2) polje2.textContent = najbolji == null ? '—' : v.prikaz({ najbolji: najbolji });
+  });
+
+  function redUnosa(p, v) {
+    var polja = v.unos === 'pokusaji'
+      ? Array.apply(null, Array(v.pokusaja)).map(function (x, i) {
+          return '<div class="rast"><label class="slab" for="' + esc(p.id) + '-' + i + '">' + (i + 1) + '. pokušaj</label>' +
+            '<input id="' + esc(p.id) + '-' + i + '" data-pokusaj="' + i + '" inputmode="decimal" placeholder="' + esc(v.jedinica) + '"></div>';
+        })
+      : v.polja.map(function (f) {
+          return '<div class="rast"><label class="slab" for="' + esc(p.id) + '-' + esc(f.kljuc) + '">' + esc(f.naziv) + '</label>' +
+            '<input id="' + esc(p.id) + '-' + esc(f.kljuc) + '" data-mera="' + esc(f.kljuc) + '" inputmode="decimal" placeholder="' + esc(f.jedinica) + '"></div>';
+        });
+
+    return '<div class="kartica unos" data-id="' + esc(p.id) + '">' +
+      '<div class="red"><div class="rast skraceno"><b>' + esc(p.ime) + '</b>' +
+      (p.broj ? ' <span class="slab">#' + esc(p.broj) + '</span>' : '') + '</div>' +
+      (v.unos === 'pokusaji' ? '<div class="krupno" data-polje="najbolji" style="min-width:74px;text-align:right">—</div>' : '') +
+      '</div>' +
+      '<div class="red" style="gap:8px;margin-top:6px">' + polja.join('') + '</div>' +
+      '</div>';
+  }
+
+  /* Broj iz polja: prihvata i zarez, jer tako pise na nasoj tastaturi. */
+  function uBroj(tekst) {
+    var t = String(tekst == null ? '' : tekst).trim().replace(',', '.');
+    if (t === '') return null;
+    var x = Number(t);
+    return isNaN(x) ? null : x;
+  }
+
+  function sacuvajUnos(v) {
+    var rezultati = [];
+    Array.prototype.forEach.call(app.querySelectorAll('.kartica[data-id]'), function (kart) {
+      var id = kart.getAttribute('data-id');
+      var p = global.DB.igrac(id);
+      if (!p) return;
+      var r = {
+        igracId: p.id,
+        ime: p.ime,
+        broj: p.broj || '',
+        grupa: p.grupa || '',
+        godine: global.DB.godine(p, app.querySelector('#udatum').value),
+        status: 'zavrsio',
+        beleska: ''
+      };
+      if (v.unos === 'pokusaji') {
+        r.pokusaji = Array.prototype.map.call(kart.querySelectorAll('input[data-pokusaj]'), function (x) {
+          return uBroj(x.value);
+        });
+        if (!r.pokusaji.some(function (x) { return x != null; })) return;
+        v.izracunaj(r);
+      } else {
+        r.vrednosti = {};
+        var imaNesto = false;
+        Array.prototype.forEach.call(kart.querySelectorAll('input[data-mera]'), function (x) {
+          var broj = uBroj(x.value);
+          if (broj == null) return;
+          r.vrednosti[x.getAttribute('data-mera')] = broj;
+          imaNesto = true;
+        });
+        if (!imaNesto) return;
+      }
+      rezultati.push(r);
+    });
+
+    if (!rezultati.length) {
+      poruka('Nije upisan nijedan rezultat.');
+      return;
+    }
+
+    var datum = app.querySelector('#udatum').value || danas();
+    var t = global.DB.sacuvajTest({
+      vrsta: v.id,
+      naziv: vrednost('#unaziv') || v.naziv,
+      datum: new Date(datum + 'T' + new Date().toTimeString().slice(0, 8)).toISOString(),
+      lokacija: vrednost('#umesto'),
+      beleska: vrednost('#ubeleska'),
+      rezultati: rezultati
+    });
+    poruka(rezultati.length + ' rezultat(a) sačuvano.');
+    idi('#/test/' + t.id);
   }
 
   /* ---------- podesavanja ---------- */

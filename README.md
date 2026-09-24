@@ -18,6 +18,25 @@ merenjima.
   kroz vreme, najbolji i poslednji rezultat i grafikon.
 - **Izvoz** — CSV po testiranju ili za sve rezultate, plus JSON rezervna kopija svega.
 
+## Testovi
+
+Pored beep testa, evidencija vodi i ostale testove koji se rade u košarci:
+
+| Grupa | Test | Meri se | Bolje je |
+|---|---|---|---|
+| Izdržljivost | Beep test | nivo.deonica | više |
+| Skok | Skok iz mesta, skok sa zaletom | cm, 3 pokušaja | više |
+| Brzina | Sprint 20 m, sprint 3/4 terena | s, 2–3 pokušaja | manje |
+| Agilnost | Lane agility, T-test, 505 | s, 2 pokušaja | manje |
+| Merenje | Visina, težina, raspon ruku, dohvat | cm i kg | — |
+
+Beep test ima svoj ekran testiranja (sat, signali, pločice). Ostali se unose posle merenja:
+izabere se test, pa se po igraču upišu pokušaji — najbolji se računa sam, i zna se da je kod
+sprinta i agilnosti **manji broj bolji**. Igrači kojima ništa nije upisano se ne čuvaju.
+
+Svaki test ima svoj grafikon napretka u kartonu igrača i svoje kolone u CSV-u. Šta je koji
+test, u čemu se meri i šta je bolji rezultat stoji na jednom mestu — u `js/testovi.js`.
+
 Sve radi **offline** i bez servera. Podaci stoje u pregledaču uređaja na kom se radi test.
 
 ## Kako se pokreće

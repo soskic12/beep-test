@@ -182,7 +182,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
     jednako(imena[0], 'Cvetković Marko', 'srpska latinica: C pre Č');
     jednako(imena[1], 'Čolić Nikola', 'pa Č');
     jednako(imena[2], 'Šoškić Đorđe', 'pa Š');
-    w.location.hash = '#/novi';
+    w.location.hash = '#/novi/beep';      // priprema beep testa; #/novi je sad spisak testova
     posle(250, pokreniTest);
   }
 
@@ -395,7 +395,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
               d.querySelectorAll('.plocica').length);
             var pauza = d.querySelector('#tPauza');
             jednako(pauza ? pauza.textContent : '(nema)', 'Nastavi', 'test čeka u pauzi, ne kreće sam');
-            kraj();
+            izborTesta();
           });
         } else {
           kraj();
@@ -410,12 +410,132 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
       ? '<b>Podaci su vraćeni.</b>' : '<b>Kopije nema.</b>';
   });
 
+  /* ---------- 8. drugi test: izbor i unos ---------- */
+
+  function izborTesta() {
+    korak('8. Izbor testa');
+    w.DB.obrisiTok();                       // prekinuti beep test nam vise ne treba
+    w.location.hash = '#/igraci';
+    posle(200, function () {
+      w.location.hash = '#/novi';
+      posle(300, function () {
+        var tekst = d.getElementById('app').textContent;
+        ['Izdržljivost', 'Skok', 'Brzina', 'Agilnost', 'Merenje'].forEach(function (g) {
+          tvrdi(tekst.indexOf(g) >= 0, 'ponuđena je grupa „' + g + '"', '-');
+        });
+        tvrdi(tekst.indexOf('Sprint 20 m') >= 0 && tekst.indexOf('Lane agility') >= 0 && tekst.indexOf('Beep test') >= 0,
+          'ponuđeni su i beep i novi testovi', tekst.slice(0, 80));
+        tvrdi(tekst.indexOf('rađeno') >= 0, 'piše koji je test već rađen', '-');
+
+        var veze = d.querySelectorAll('#app a[href^="#/unos/"]');
+        tvrdi(veze.length >= 8, 'svaki test bez protokola vodi na unos', veze.length);
+        var beep = d.querySelector('#app a[href="#/novi/beep"]');
+        tvrdi(!!beep, 'beep test vodi na svoj ekran pripreme', '-');
+
+        w.location.hash = '#/unos/sprint-20';
+        posle(350, unosSprinta);
+      });
+    });
+  }
+
+  function unosSprinta() {
+    korak('9. Unos rezultata sprinta');
+    var kartice = d.querySelectorAll('.kartica.unos[data-id]');
+    jednako(kartice.length, 3, 'svaki igrač ima svoj red za unos');
+    var polja = kartice[0].querySelectorAll('input[data-pokusaj]');
+    jednako(polja.length, 3, 'sprint 20 m ima tri pokušaja');
+
+    /* prvi igrac: tri pokusaja, sa zarezom kao na nasoj tastaturi */
+    upisi(polja[0], '3,21');
+    upisi(polja[1], '3,09');
+    upisi(polja[2], '3,15');
+    jednako(kartice[0].querySelector('[data-polje="najbolji"]').textContent, '3,09 s',
+      'odmah se vidi najbolji, a kod sprinta je to najkraće vreme');
+
+    /* drugi igrac: samo jedan pokusaj */
+    upisi(kartice[1].querySelectorAll('input[data-pokusaj]')[0], '3.44');
+    /* treci igrac: nista - ne sme da se sacuva */
+
+    d.querySelector('#unaziv').value = 'Sprint u utorak';
+    d.querySelector('#usacuvaj').click();
+    posle(400, proveriSprint);
+  }
+
+  function upisi(polje, tekst) {
+    polje.value = tekst;
+    polje.dispatchEvent(new w.Event('input', { bubbles: true }));
+  }
+
+  function proveriSprint() {
+    korak('10. Sprint u istoriji');
+    tvrdi(w.location.hash.indexOf('#/test/') === 0, 'posle čuvanja se otvara sačuvani test', w.location.hash);
+
+    var sprint = null;
+    w.DB.testovi().forEach(function (t) { if (t.vrsta === 'sprint-20') sprint = t; });
+    tvrdi(!!sprint, 'sprint je upisan kao svoja vrsta testa', '-');
+    if (!sprint) { kraj(); return; }
+    jednako(sprint.naziv, 'Sprint u utorak', 'naziv sa ekrana');
+    jednako(sprint.rezultati.length, 2, 'igrač bez ijednog upisanog pokušaja se ne čuva');
+
+    var prvi = sprint.rezultati[0];
+    assertBroj(prvi.najbolji, 3.09, 'najbolji je najkraće vreme');
+    assertBroj(prvi.pokusaji[0], 3.21, 'zarez je pročitan kao decimalni zarez');
+    jednako(prvi.status, 'zavrsio', 'unos daje status „završio"');
+
+    var tekst = d.getElementById('app').textContent;
+    tvrdi(tekst.indexOf('3,09 s') >= 0, 'na ekranu testa stoji rezultat sa jedinicom', tekst.slice(0, 120));
+    tvrdi(tekst.indexOf('Sprint 20 m') >= 0, 'piše koja je vrsta testa', '-');
+    var redovi = d.querySelectorAll('.tabela tr');
+    tvrdi(redovi.length >= 3, 'tabela ima zaglavlje i oba rezultata', redovi.length);
+    var prviRed = redovi[1].textContent;
+    tvrdi(prviRed.indexOf('3,09') >= 0, 'poredak ide od najbržeg', prviRed);
+
+    var csv = w.DB.csvTesta(sprint);
+    tvrdi(csv.split('\r\n')[0] === 'datum;test;igrac;broj;grupa;rezultat;pokusaj_1;pokusaj_2;pokusaj_3;status;beleska',
+      'CSV sprinta ima kolone sprinta, ne beep testa', csv.split('\r\n')[0]);
+
+    posle(100, dvaTestaUKartonu);
+  }
+
+  function assertBroj(dobijeno, ocekivano, opis) {
+    tvrdi(Math.abs(Number(dobijeno) - ocekivano) < 1e-9, opis + ' (' + ocekivano + ')', dobijeno);
+  }
+
+  function dvaTestaUKartonu() {
+    korak('11. Karton sa dva različita testa');
+    /* spisak ide po latinici (Cvetković, Čolić, Šoškić), pa je sprint upisan
+       prvoj dvojici - karton gledamo kod onog ko ima oba testa */
+    var igrac = null;
+    w.DB.igraci().forEach(function (p) { if (p.ime.indexOf('Cvetković') >= 0) igrac = p; });
+    /* drugi sprint, kasnije i sporije - da se vidi da aplikacija zna smer */
+    w.DB.sacuvajTest({
+      vrsta: 'sprint-20', naziv: 'Sprint u decembru', datum: '2026-12-05T10:00:00.000Z',
+      rezultati: [{ igracId: igrac.id, ime: igrac.ime, pokusaji: [3.30], najbolji: 3.30, status: 'zavrsio' }]
+    });
+    w.location.hash = '#/igraci';
+    posle(200, function () {
+      w.location.hash = '#/igrac/' + igrac.id;
+      posle(350, function () {
+        var naslovi = Array.prototype.map.call(d.querySelectorAll('#app h2'), function (h) { return h.textContent; });
+        tvrdi(naslovi.indexOf('Beep test') >= 0, 'karton ima karticu za beep test', naslovi.join(', '));
+        tvrdi(naslovi.indexOf('Sprint 20 m') >= 0, 'i zasebnu karticu za sprint', naslovi.join(', '));
+        var tekst = d.getElementById('app').textContent;
+        tvrdi(tekst.indexOf('3,09 s') >= 0, 'u kartonu stoji vreme sprinta', '-');
+        tvrdi(tekst.indexOf('niže je bolje') >= 0,
+          'uz grafikon sprinta piše da je niže bolje', '-');
+        tvrdi(/slabije za 0,21 s/.test(tekst),
+          'sporije vreme je slabiji rezultat, iako je broj veći', tekst.replace(/s+/g, ' ').slice(0, 220));
+        kraj();
+      });
+    });
+  }
+
   function pokreni() {
     document.getElementById('kreni').disabled = true;
     ishod.textContent = 'radi…';
     napraviKopiju();
     okvir.src = '../index.html#/igraci';
-    posle(25000, isteklo);
+    posle(40000, isteklo);
   }
 
   /* ako je ranija provera prekinuta, podaci cekaju da budu vraceni */
