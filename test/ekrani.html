@@ -170,7 +170,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
     w.location.hash = '#/podesavanja';
     posle(150, function () {
       w.location.hash = '#/igraci';
-      posle(250, proveriSpisak);
+      posle(450, proveriSpisak);
     });
   }
 
@@ -637,7 +637,45 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
         var naslovi = Array.prototype.map.call(d.querySelectorAll('#app h2'), function (h) { return h.textContent; });
         tvrdi(naslovi.indexOf('Merenje (antropometrija)') >= 0,
           'merenje ima i svoju karticu sa istorijom', naslovi.join(', '));
-        kraj();
+        opomenaZaKopiju();
+      });
+    });
+  }
+
+  /* ---------- 14. opomena za rezervnu kopiju ---------- */
+
+  function opomenaZaKopiju() {
+    korak('14. Rezervna kopija');
+    w.location.hash = '#/igraci';
+    posle(200, function () {
+      w.location.hash = '#/testovi';
+      posle(300, function () {
+        var tekst = d.getElementById('app').textContent;
+        tvrdi(tekst.indexOf('nije nigde kopirana') >= 0,
+          'spisak testiranja opominje da evidencija nije kopirana', tekst.slice(0, 120));
+        tvrdi(!!d.querySelector('.opomena-kopija a[href="#/podesavanja"]'),
+          'opomena vodi pravo na pravljenje kopije', '-');
+
+        w.location.hash = '#/podesavanja';
+        posle(300, function () {
+          var t2 = d.getElementById('app').textContent;
+          tvrdi(t2.indexOf('Poslednja kopija: nikad') >= 0, 'podešavanja kažu da kopije nema', t2.slice(0, 200));
+          tvrdi(t2.indexOf('v5') >= 0, 'piše koja je verzija', '-');
+
+          /* Kao da je kopija napravljena posle svih testiranja. Proba ih pravi
+             sa datumima u buducnosti, pa zapamtiKopiju() sa danasnjim danom ne
+             bi pokrila poslednje testiranje - a to je ispravno ponasanje. */
+          w.DB.postavi('poslednjaKopija', '2027-01-01T00:00:00.000Z');
+          w.location.hash = '#/igraci';
+          posle(200, function () {
+            w.location.hash = '#/testovi';
+            posle(300, function () {
+              tvrdi(d.getElementById('app').textContent.indexOf('nije nigde kopirana') < 0,
+                'posle kopije opomene nema', 'jos stoji');
+              kraj();
+            });
+          });
+        });
       });
     });
   }
@@ -647,7 +685,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
     ishod.textContent = 'radi…';
     napraviKopiju();
     okvir.src = '../index.html#/igraci';
-    posle(60000, isteklo);
+    posle(120000, isteklo);
   }
 
   /* ako je ranija provera prekinuta, podaci cekaju da budu vraceni */

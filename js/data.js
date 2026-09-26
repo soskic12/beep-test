@@ -11,7 +11,8 @@
     zvuk: true,
     najava: true,         // govorna najava nivoa
     odbrojavanje: 5,      // sekundi pre starta
-    ekranBudan: true
+    ekranBudan: true,
+    poslednjaKopija: ''     // kad je poslednji put napravljen izvoz
   };
 
   var state = null;
@@ -256,10 +257,25 @@
     try { global.localStorage.removeItem(RUN_KEY); } catch (e) { /* nema veze */ }
   }
 
+  /* Ima li testiranja koja nisu usla ni u jednu rezervnu kopiju?
+     Vraca datum najnovijeg takvog testiranja, ili null ako je sve pokriveno. */
+  function nijeUKopiji() {
+    var lista = testovi();
+    if (!lista.length) return null;
+    var najnovije = lista[0].datum || '';
+    var kopija = get().podesavanja.poslednjaKopija || '';
+    return najnovije > kopija ? najnovije : null;
+  }
+
   /* ---------- izvoz / uvoz ---------- */
 
   function izvoz() {
     return JSON.stringify(get(), null, 2);
+  }
+
+  /* Upisuje se tek kad je kopija zaista preuzeta. */
+  function zapamtiKopiju() {
+    postavi('poslednjaKopija', new Date().toISOString());
   }
 
   function uvoz(tekst, spoji) {
@@ -349,6 +365,8 @@
     izvoz: izvoz,
     uvoz: uvoz,
     csv: csv,
+    nijeUKopiji: nijeUKopiji,
+    zapamtiKopiju: zapamtiKopiju,
     csvTesta: csvTesta,
     vrsteUIstoriji: vrsteUIstoriji,
     poslednjeMerenje: poslednjeMerenje

@@ -386,3 +386,38 @@ test('igrac bez merenja nema poslednje merenje', () => {
   const p = w.DB.dodajIgraca({ ime: 'A' });
   assert.strictEqual(w.DB.poslednjeMerenje(p.id), null);
 });
+
+/* ---------- rezervna kopija ---------- */
+
+test('zna se kad ima testiranja koja nisu ni u jednoj kopiji', () => {
+  const w = napraviProzor();
+  assert.strictEqual(w.DB.nijeUKopiji(), null, 'bez ijednog testiranja nema šta da se kopira');
+
+  upisiTest(w, '2025-03-01T10:00:00.000Z', []);
+  assert.ok(w.DB.nijeUKopiji(), 'ima testiranje, a kopije nema nijedne');
+
+  w.DB.zapamtiKopiju();
+  assert.strictEqual(w.DB.nijeUKopiji(), null, 'posle kopije je sve pokriveno');
+
+  upisiTest(w, new Date(Date.now() + 60000).toISOString(), [], 'posle kopije');
+  assert.ok(w.DB.nijeUKopiji(), 'novo testiranje posle kopije se opet javlja');
+});
+
+test('datum poslednje kopije prezivljava ponovno ucitavanje', () => {
+  const w = napraviProzor();
+  w.DB.zapamtiKopiju();
+  const kad = w.DB.podesavanja().poslednjaKopija;
+  assert.ok(kad, 'datum je upisan');
+  w.DB.load();
+  assert.strictEqual(w.DB.podesavanja().poslednjaKopija, kad);
+});
+
+test('uvezena evidencija iz tudje kopije se i dalje racuna kao nekopirana', () => {
+  const w = napraviProzor();
+  w.DB.uvoz(JSON.stringify({
+    verzija: 1, igraci: [],
+    testovi: [{ id: 't', vrsta: 'beep', datum: '2025-05-01T10:00:00.000Z', rezultati: [] }],
+    podesavanja: {}
+  }), false);
+  assert.ok(w.DB.nijeUKopiji(), 'na novom uređaju kopija tek treba da se napravi');
+});

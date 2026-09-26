@@ -5,7 +5,7 @@
   var P = global.Protocol;
   /* Isti broj stoji i u sw.js (KES) - provera ih uporedjuje, da se ne
      razidju. Kad se objavi izmena, podize se na oba mesta. */
-  var VERZIJA = 'v4';
+  var VERZIJA = 'v5';
   var app = document.getElementById('app');
   var trakaEl = document.getElementById('traka');
 
@@ -908,6 +908,7 @@
     var lista = global.DB.testovi();
     app.innerHTML =
       '<div class="zaglavlje"><h1>Testovi</h1><a class="dugme glavno" href="#/novi">+ Novi</a></div>' +
+      opomenaZaKopiju() +
       (lista.length ? lista.map(function (t) {
         var v = global.Testovi.vrsta(t.vrsta);
         var rez = t.rezultati || [];
@@ -921,6 +922,21 @@
           '<div class="sredina"><div class="krupno">' + (najbolji ? esc(v.prikaz(najbolji)) : '—') + '</div>' +
           '<div class="slab">najbolji</div></div></a>';
       }).join('') : '<div class="prazno">Još nema odrađenih testiranja.</div>');
+  }
+
+  /* Evidencija stoji samo u ovom pregledacu: brisanje podataka pregledaca
+     je brise. Zato se javlja cim ima testiranja koja nisu ni u jednoj kopiji. */
+  function opomenaZaKopiju() {
+    var datum = global.DB.nijeUKopiji();
+    if (!datum) return '';
+    var kopija = global.DB.podesavanja().poslednjaKopija;
+    return '<div class="kartica opomena-kopija">' +
+      '<b>Evidencija nije nigde kopirana</b>' +
+      '<div class="slab">' +
+      (kopija ? 'Poslednja kopija je od ' + fmtDatum(kopija) + ', a ima novijih testiranja.'
+        : 'Podaci stoje samo u ovom pregledaču. Ako se obrišu podaci pregledača, nema ih više.') +
+      '</div>' +
+      '<div class="dugmad razmak"><a class="dugme" href="#/podesavanja">Napravi kopiju</a></div></div>';
   }
 
   function ekranTest(id) {
@@ -1275,6 +1291,8 @@
       'Sve stoji u ovom pregledaču — napravi rezervnu kopiju pre brisanja podataka pregledača ili promene telefona.</div>' +
       '<div class="dugmad razmak"><button id="izvoz">Izvoz (JSON)</button>' +
       '<button id="csv">Svi rezultati (CSV)</button></div>' +
+      '<div class="slab">Poslednja kopija: ' +
+      (pod.poslednjaKopija ? fmtDatumVreme(pod.poslednjaKopija) : '<b>nikad</b>') + '</div>' +
       '<div class="dugmad razmak"><button id="uvoz">Uvoz iz datoteke</button></div>' +
       '<input type="file" id="datoteka" accept="application/json,.json" style="display:none">' +
       '<div class="dugmad razmak"><button class="opasno" id="brisi">Obriši sve podatke</button></div>' +
@@ -1306,7 +1324,10 @@
     app.querySelector('#proba').addEventListener('click', function () { global.Zvuk.proba(); });
 
     app.querySelector('#izvoz').addEventListener('click', function () {
-      if (preuzmi('beep-test-' + danas() + '.json', global.DB.izvoz(), 'application/json')) poruka('Kopija preuzeta.');
+      if (!preuzmi('beep-test-' + danas() + '.json', global.DB.izvoz(), 'application/json')) return;
+      global.DB.zapamtiKopiju();
+      poruka('Kopija preuzeta.');
+      ekranPodesavanja();
     });
     app.querySelector('#csv').addEventListener('click', function () {
       if (preuzmi('beep-test-svi-rezultati-' + danas() + '.csv', '﻿' + global.DB.csv(), 'text/csv')) poruka('CSV preuzet.');
