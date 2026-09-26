@@ -3,6 +3,9 @@
   'use strict';
 
   var P = global.Protocol;
+  /* Isti broj stoji i u sw.js (KES) - provera ih uporedjuje, da se ne
+     razidju. Kad se objavi izmena, podize se na oba mesta. */
+  var VERZIJA = 'v4';
   var app = document.getElementById('app');
   var trakaEl = document.getElementById('traka');
 
@@ -1250,6 +1253,8 @@
   /* ---------- podesavanja ---------- */
 
   function ekranPodesavanja() {
+    /* koju verziju telefon zaista ima - da se ne nagadja kad nesto zapne */
+    var oVerziji = VERZIJA;
     var pod = global.DB.podesavanja();
     var s = global.DB.state();
     app.innerHTML =
@@ -1273,6 +1278,13 @@
       '<div class="dugmad razmak"><button id="uvoz">Uvoz iz datoteke</button></div>' +
       '<input type="file" id="datoteka" accept="application/json,.json" style="display:none">' +
       '<div class="dugmad razmak"><button class="opasno" id="brisi">Obriši sve podatke</button></div>' +
+      '</div>' +
+      '<div class="kartica"><h2>Verzija</h2>' +
+      '<div class="red"><div class="rast slab">Aplikacija na ovom uređaju</div>' +
+      '<b id="overzija">' + esc(oVerziji) + '</b></div>' +
+      '<div class="slab" style="margin-top:6px">Nova verzija se povlači sama kad ima mreže. ' +
+      'Ako ostane stara, pritisni <b>Proveri ažuriranje</b>.</div>' +
+      '<div class="dugmad razmak"><button id="azuriraj">Proveri ažuriranje</button></div>' +
       '</div>' +
       '<div class="kartica"><h2>Kako se radi test</h2>' +
       '<p class="slab">Dve linije na ' + P.DISTANCE_M + ' m. Trči se od signala do signala; ko dva puta uzastopno ne stigne na liniju, ispada. ' +
@@ -1329,6 +1341,17 @@
       } else {
         citac.readAsText(f);
       }
+    });
+    app.querySelector('#azuriraj').addEventListener('click', function () {
+      if (!navigator.serviceWorker) { poruka('Ovaj pregledač ne pamti aplikaciju offline.'); return; }
+      poruka('Tražim novu verziju…');
+      navigator.serviceWorker.getRegistration().then(function (reg) {
+        if (!reg) { poruka('Aplikacija nije zapamćena offline.'); return; }
+        return reg.update().then(function () {
+          /* ako je nova stigla, preuzima je i stranica se sama osvezava */
+          poruka(reg.waiting || reg.installing ? 'Nova verzija se preuzima…' : 'Ovo je najnovija verzija.');
+        });
+      }).catch(function () { poruka('Provera nije uspela — proveri mrežu.'); });
     });
     app.querySelector('#brisi').addEventListener('click', function () {
       if (!global.confirm('Brišu se SVI igrači i sva testiranja iz ovog pregledača. Nastaviti?')) return;

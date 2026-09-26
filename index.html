@@ -26,8 +26,20 @@
 <script src="js/app.js"></script>
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  /* Kad nova verzija preuzme stranicu, osvezi je jednom - inace bi trener
+     gledao staru sve dok ne zatvori i ne otvori aplikaciju jos jednom.
+     Usred testiranja se ne osvezava, da ne prekine merenje. */
+  var osvezeno = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (osvezeno) return;
+    if ((location.hash || '') === '#/tok') return;
+    osvezeno = true;
+    location.reload();
+  });
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js').catch(function () { /* radi i bez toga */ });
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      reg.update();
+    }).catch(function () { /* radi i bez toga */ });
   });
 }
 </script>
