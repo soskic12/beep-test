@@ -113,3 +113,19 @@ test('testovi na vreme mogu da se mere telefonom, ostali ne', () => {
   assert.ok(!T.vrsta('mere').stoperica);
   assert.ok(!T.vrsta('beep').stoperica);
 });
+
+test('osa grafikona govori istim jezikom kao rezultat', () => {
+  const beep = T.vrsta('beep');
+  const P = global.window.Protocol;
+  const ls = P.toLevelShuttle(69);
+  assert.strictEqual(beep.osa(69), P.fmtLevel(ls.level, ls.shuttle),
+    'kod beep testa na osi stoji nivo.deonica, ne sirov broj deonica');
+
+  assert.strictEqual(T.vrsta('sprint-20').osa(3.2), '3,20', 'sprint: dve decimale, naš zapis');
+  assert.strictEqual(T.vrsta('skok-mesto').osa(61), '61', 'skok: ceo broj');
+  assert.strictEqual(T.vrsta('mere').osa(192.5), '192,5');
+
+  T.sve().forEach((v) => {
+    assert.strictEqual(typeof v.osa, 'function', 'svaki test mora da ume da ispiše osu: ' + v.id);
+  });
+});

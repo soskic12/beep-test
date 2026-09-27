@@ -195,15 +195,22 @@ input[type="checkbox"] { width: auto; min-height: 0; }
 body.trci { overflow: hidden; }
 .tok { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--poz); z-index: 30; }
 .tok .vrh {
-  padding: 10px 12px calc(10px + env(safe-area-inset-top));
-  background: var(--kartica); border-bottom: 1px solid var(--ivica);
+  padding: 10px 14px calc(12px + env(safe-area-inset-top));
+  background: var(--kartica); border-bottom: 2px solid var(--ivica);
 }
-.tok .brojevi { display: flex; align-items: baseline; gap: 14px; }
+.tok .brojevi { display: flex; align-items: flex-end; gap: 14px; }
+.tok .utrci { text-align: right; }
+.tok .utrci .krupno { font-size: var(--f-xl); }
+.natpis {
+  font-size: var(--f-xs); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--tekst-slab); font-weight: 600;
+}
 .tok .nivo { font-size: var(--f-3xl); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -.03em; }
 .tok .sat { font-size: var(--f-l); font-variant-numeric: tabular-nums; color: var(--tekst-slab); }
 .tok .napredak { height: 10px; background: var(--ivica); border-radius: 999px; margin-top: 8px; overflow: hidden; }
 .tok .napredak i { display: block; height: 100%; background: var(--glavna); width: 0; }
 .tok .napredak.uskoro i { background: var(--upozorenje); }
+.tok .napredak.uskoro { box-shadow: 0 0 0 2px color-mix(in srgb, var(--upozorenje) 45%, transparent); }
 
 .plocice {
   flex: 1; overflow-y: auto; padding: 10px;
@@ -222,14 +229,24 @@ body.trci { overflow: hidden; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px; text-align: center; cursor: pointer; user-select: none;
 }
-.plocica .ime { font-weight: 700; font-size: 1rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plocica .ime { font-weight: 700; font-size: 1.02rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -.01em; }
+/* stanje se i pise, ne samo boji - boja sama nije dovoljna po suncu ni za daltonistu */
+.plocica .stanje {
+  font-size: var(--f-xs); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--tekst-slab);
+}
+.plocica.opomena .stanje { color: #6b4c00; }
 .plocica .dres { font-size: .72rem; color: var(--tekst-slab); }
 .plocica .rez { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .plocica.aktivan { border-color: var(--glavna); }
-.plocica.opomena { border-color: var(--upozorenje); background: color-mix(in srgb, var(--upozorenje) 18%, var(--kartica)); }
+.plocica.aktivan .rez { color: var(--glavna); }
+.plocica.opomena { border-color: var(--upozorenje); background: color-mix(in srgb, var(--upozorenje) 30%, var(--kartica)); }
+/* ko je ispao ostaje na svom mestu - plocice se ne premestaju usred testa,
+   jer bi trener pritisnuo pogresnog igraca */
 .plocica.ispao, .plocica.odustao, .plocica.povreda {
-  border-color: var(--opasnost); background: color-mix(in srgb, var(--opasnost) 14%, var(--kartica)); opacity: .9;
+  border-color: var(--ivica); background: var(--poz); opacity: .72;
 }
+.plocica.ispao .rez, .plocica.odustao .rez, .plocica.povreda .rez { color: var(--tekst-slab); }
 .plocica.zavrsio { border-color: var(--plava); }
 .plocica { overflow: hidden; }
 .plocica .ime { padding: 0 2px; }
@@ -265,13 +282,23 @@ body.trci { overflow: hidden; }
 .tabela th, .tabela td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--ivica); }
 .tabela th { font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; color: var(--tekst-slab); }
 .tabela td.broj, .tabela th.broj { text-align: right; font-variant-numeric: tabular-nums; }
-.uvijeno { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.uvijeno { overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative; }
+/* znak da tabela ima jos kolona udesno */
+.uvijeno::after {
+  content: ''; position: sticky; right: 0; top: 0; float: right;
+  width: 24px; height: 100%; pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--kartica));
+}
 
-.grafikon { width: 100%; height: 180px; display: block; }
-.grafikon .linija { fill: none; stroke: var(--glavna); stroke-width: 2.5; }
-.grafikon .tacka { fill: var(--glavna); }
-.grafikon .osa { stroke: var(--ivica); stroke-width: 1; }
-.grafikon text { fill: var(--tekst-slab); font-size: 10px; }
+.grafikon { width: 100%; height: 200px; display: block; }
+.grafikon .linija { fill: none; stroke: var(--akcenat, var(--glavna)); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.grafikon .punjenje { fill: color-mix(in srgb, var(--akcenat, var(--glavna)) 14%, transparent); stroke: none; }
+.grafikon .tacka { fill: var(--akcenat, var(--glavna)); }
+.grafikon .tacka.zadnja { stroke: var(--kartica); stroke-width: 3; }
+.grafikon .mreza { stroke: var(--ivica); stroke-width: 1; }
+.grafikon text { fill: var(--tekst-slab); font-size: 13px; font-variant-numeric: tabular-nums; }
+.grafikon .vrednost { fill: var(--tekst); font-size: 17px; font-weight: 700; }
+.grafikon .datum { font-size: 12px; }
 
 .poruka {
   position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);

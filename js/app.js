@@ -5,7 +5,7 @@
   var P = global.Protocol;
   /* Isti broj stoji i u sw.js (KES) - provera ih uporedjuje, da se ne
      razidju. Kad se objavi izmena, podize se na oba mesta. */
-  var VERZIJA = 'v6';
+  var VERZIJA = 'v7';
   var app = document.getElementById('app');
   var trakaEl = document.getElementById('traka');
 
@@ -433,50 +433,78 @@
       '</div>' +
       (napredak ? '<div class="sredina slab" style="margin-top:8px">u odnosu na prethodni: <b>' + esc(napredak) + '</b></div>' : '') +
       grafikon(rez, v) +
-      '<div class="uvijeno" style="margin-top:10px"><table class="tabela">' +
-      '<tr><th>Datum</th><th>Test</th>' +
-      v.kolonePrikaz.map(function (k) { return '<th class="broj">' + esc(k) + '</th>'; }).join('') +
-      '</tr>' +
+      /* U kartonu stoji samo rezultat - sve kolone tog testa su jedan dodir
+         dalje, na ekranu testiranja, i ovde bi pobegle sa telefona. */
+      '<table class="tabela razmak">' +
+      '<tr><th>Datum</th><th>Testiranje</th><th class="broj">Rezultat</th></tr>' +
       rez.slice().reverse().map(function (r) {
         return '<tr><td>' + fmtDatum(r.datum) + '</td>' +
           '<td class="skraceno"><a href="#/test/' + esc(r.testId) + '">' + esc(r.naziv || 'test') + '</a>' +
           (r.status && r.status !== 'zavrsio' ? '<div class="slab">' + esc(statusTekst(r.status)) + '</div>' : '') + '</td>' +
-          v.redPrikaz(r).map(function (c) {
-            return '<td class="broj">' + (c.jako ? '<b>' + esc(c.tekst) + '</b>' : esc(c.tekst)) + '</td>';
-          }).join('') +
+          '<td class="broj"><b>' + esc(v.prikaz(r)) + '</b></td>' +
           '</tr>';
       }).join('') +
-      '</table></div></div>';
+      '</table></div>';
   }
 
   /* Napredak kroz vreme - vrednost i smer zavise od vrste testa. */
   function grafikon(rez, v) {
-    if (rez.length < 2) return '<div class="slab">Grafikon se crta od drugog testa.</div>';
-    var w = 600, h = 220, l = 46, r = 12, t = 16, b = 34;
-    var y = rez.map(function (x) { return v.glavna(x); }).filter(function (x) { return x != null; });
-    if (y.length < 2) return '<div class="slab">Grafikon se crta od drugog merenja.</div>';
-    var min = Math.min.apply(null, y), max = Math.max.apply(null, y);
-    if (max === min) { max = min + 1; }
+    var vrednosti = rez.map(function (x) { return v.glavna(x); });
+    var ima = vrednosti.filter(function (x) { return x != null; });
+    if (ima.length < 2) return '<div class="slab sredina">Grafikon se crta od drugog merenja.</div>';
+
+    var w = 600, h = 230, l = 54, r = 16, t = 18, b = 38;
+    var min = Math.min.apply(null, ima), max = Math.max.apply(null, ima);
+    if (max === min) { max = min + 1; min = Math.max(0, min - 1); }
     var raspon = max - min;
-    min = Math.max(0, min - raspon * 0.15);
-    max = max + raspon * 0.15;
+    min = Math.max(0, min - raspon * 0.18);
+    max = max + raspon * 0.18;
+
+    function uY(vrednost) {
+      return t + (h - t - b) * (1 - (vrednost - min) / (max - min));
+    }
     var tacke = rez.map(function (x, i) {
-      var px = l + (rez.length === 1 ? (w - l - r) / 2 : i * (w - l - r) / (rez.length - 1));
-      var py = t + (h - t - b) * (1 - ((v.glavna(x) == null ? min : v.glavna(x)) - min) / (max - min));
-      return { x: px, y: py, r: x };
-    });
-    return '<svg class="grafikon" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Napredak">' +
-      '<line class="osa" x1="' + l + '" y1="' + t + '" x2="' + l + '" y2="' + (h - b) + '"/>' +
-      '<line class="osa" x1="' + l + '" y1="' + (h - b) + '" x2="' + (w - r) + '" y2="' + (h - b) + '"/>' +
-      '<text x="2" y="' + (t + 8) + '">' + global.Testovi.broj(max, v.decimala || 0) + '</text>' +
-      '<text x="2" y="' + (h - b) + '">' + global.Testovi.broj(min, v.decimala || 0) + '</text>' +
-      '<polyline class="linija" points="' + tacke.map(function (p) { return p.x + ',' + p.y; }).join(' ') + '"/>' +
-      tacke.map(function (p) { return '<circle class="tacka" cx="' + p.x + '" cy="' + p.y + '" r="5"/>'; }).join('') +
-      '<text x="' + l + '" y="' + (h - 8) + '">' + fmtDatum(rez[0].datum) + '</text>' +
-      '<text x="' + (w - r) + '" y="' + (h - 8) + '" text-anchor="end">' + fmtDatum(rez[rez.length - 1].datum) + '</text>' +
+      var vred = v.glavna(x);
+      return {
+        x: l + i * (w - l - r) / (rez.length - 1),
+        y: uY(vred == null ? min : vred),
+        vrednost: vred,
+        zapis: x
+      };
+    }).filter(function (p) { return p.vrednost != null; });
+
+    var linija = tacke.map(function (p) { return p.x + ',' + p.y; }).join(' ');
+    var dno = h - b;
+    var punjenje = 'M' + tacke[0].x + ',' + dno + ' L' + linija.split(' ').join(' L') + ' L' + tacke[tacke.length - 1].x + ',' + dno + ' Z';
+    var zadnja = tacke[tacke.length - 1];
+    var prva = tacke[0];
+
+    /* tri vodoravne linije: dno, sredina, vrh - da se visina moze proceniti */
+    var mreza = [0, 0.5, 1].map(function (deo) {
+      var vrednost = min + (max - min) * deo;
+      var y = uY(vrednost);
+      return '<line class="mreza" x1="' + l + '" y1="' + y + '" x2="' + (w - r) + '" y2="' + y + '"/>' +
+        '<text class="osa-broj" x="' + (l - 8) + '" y="' + (y + 4) + '" text-anchor="end">' +
+        esc(v.osa ? v.osa(vrednost) : global.Testovi.broj(vrednost, v.decimala || 0)) + '</text>';
+    }).join('');
+
+    return '<svg class="grafikon" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet"' +
+      ' role="img" aria-label="Napredak kroz vreme, poslednje: ' + esc(v.prikaz(zadnja.zapis)) + '">' +
+      mreza +
+      '<path class="punjenje" d="' + punjenje + '"/>' +
+      '<polyline class="linija" points="' + linija + '"/>' +
+      tacke.map(function (p) {
+        return '<circle class="tacka" cx="' + p.x + '" cy="' + p.y + '" r="4"/>';
+      }).join('') +
+      '<circle class="tacka zadnja" cx="' + zadnja.x + '" cy="' + zadnja.y + '" r="7"/>' +
+      '<text class="vrednost" x="' + zadnja.x + '" y="' + (zadnja.y - 14) + '" text-anchor="end">' +
+      esc(v.prikaz(zadnja.zapis)) + '</text>' +
+      '<text class="datum" x="' + prva.x + '" y="' + (h - 10) + '">' + fmtDatum(rez[0].datum) + '</text>' +
+      '<text class="datum" x="' + (w - r) + '" y="' + (h - 10) + '" text-anchor="end">' +
+      fmtDatum(rez[rez.length - 1].datum) + '</text>' +
       '</svg>' +
-      '<div class="slab sredina">' + esc(v.naziv) + (v.jedinica ? ' (' + esc(v.jedinica) + ')' : '') +
-      (v.boljeJe === 'manje' ? ' — niže je bolje' : '') + '</div>';
+      '<div class="slab sredina">' + esc(v.naziv) + (v.jedinica ? ' · ' + esc(v.jedinica) : '') +
+      (v.boljeJe === 'manje' ? ' · niže je bolje' : '') + '</div>';
   }
 
   /* ---------- priprema testa ---------- */
@@ -634,8 +662,12 @@
       '<div class="tok">' +
       '<div class="vrh">' +
       '<div class="brojevi">' +
-      '<div class="nivo" id="tNivo">1.1</div>' +
-      '<div class="rast"><div class="sat" id="tSat">00:00</div><div class="slab" id="tInfo"></div></div>' +
+      '<div><div class="nivo" id="tNivo">1.1</div>' +
+      '<div class="natpis">nivo.deonica</div></div>' +
+      '<div class="rast"><div class="sat" id="tSat">00:00</div>' +
+      '<div class="slab" id="tInfo"></div></div>' +
+      '<div class="utrci"><div class="krupno" id="tUTrci">0</div>' +
+      '<div class="natpis">u trci</div></div>' +
       '</div>' +
       '<div class="napredak" id="tNapredak"><i></i></div>' +
       '</div>' +
@@ -735,8 +767,9 @@
     app.querySelector('#tSat').textContent = fmtVreme(Math.max(0, t)) + ' / ' + fmtVreme(P.TOTAL_TIME);
     var aktivnih = run.aktivni().length;
     app.querySelector('#tInfo').textContent =
-      sh.speed.toFixed(1) + ' km/h · u trci ' + aktivnih + '/' + run.ucesnici.length +
-      ' · ' + zavrseno + ' deonica';
+      sh.speed.toFixed(1) + ' km/h · ' + zavrseno + ' ' + mnozina(zavrseno, 'deonica', 'deonice', 'deonica');
+    var uTrci = app.querySelector('#tUTrci');
+    if (uTrci) uTrci.textContent = aktivnih + '/' + run.ucesnici.length;
 
     var napredak = app.querySelector('#tNapredak');
     var udeo = t < 0 ? 0 : Math.min(1, Math.max(0, (t - sh.startAt) / sh.duration));
@@ -776,6 +809,7 @@
       } else if (u.status === 'opomena') {
         var ls = P.toLevelShuttle(u.opomenaNa == null ? zavrseno : u.opomenaNa);
         prikaz = '<div class="rez">' + P.fmtLevel(ls.level, ls.shuttle) + '</div>' +
+          '<div class="stanje">opomena</div>' +
           '<div class="podnozje"><button class="malo" data-akcija="stigao">✓ stigao</button></div>';
       } else {
         var lz = P.toLevelShuttle(u.zavrseno == null ? 0 : u.zavrseno);

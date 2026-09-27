@@ -344,7 +344,7 @@ Otvara se preko servera (<code>test/ekrani.html</code>), ne preko <code>file://<
       tvrdi(t.indexOf('Jesenje merenje') >= 0, 'u kartonu stoji odrađeno testiranje', '-');
       jednako(w.DB.rezultatiIgraca(soskic.id).length, 1, 'rezultat je vezan za igrača');
       tvrdi(!d.querySelector('svg.grafikon'), 'posle prvog testa grafikona jos nema', 'nacrtan je');
-      tvrdi(t.indexOf('od drugog testa') >= 0, 'pise zasto grafikona nema', '-');
+      tvrdi(t.indexOf('od drugog merenja') >= 0, 'piše zašto grafikona još nema', t.replace(/\s+/g, ' ').slice(0, 160));
       drugiTest(soskic);
     });
   }

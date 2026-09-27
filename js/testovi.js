@@ -34,6 +34,8 @@
 
   function saPokusajima(def) {
     def.unos = 'pokusaji';
+    /* Osa grafikona govori istim jezikom kao rezultat. */
+    def.osa = function (x) { return broj(x, def.decimala); };
     def.poredi = true;
     /* Sto se meri na vreme moze da se izmeri i telefonom. */
     def.stoperica = def.jedinica === 's';
@@ -78,6 +80,7 @@
 
   function saPoljima(def) {
     def.unos = 'polja';
+    def.osa = function (x) { return broj(x, def.polja[0].decimala); };
     /* Merenje tela nema "najboljeg" - najvisi igrac nije najbolji rezultat. */
     def.poredi = false;
     def.glavna = function (r) {
@@ -143,6 +146,11 @@
       return P.fmtLevel(r.nivo, r.deonica);
     },
     izracunaj: function (r) { return r; },
+    /* Na osi stoji nivo.deonica, isto kao u rezultatu - ne sirov broj deonica. */
+    osa: function (x) {
+      var ls = P.toLevelShuttle(Math.round(x));
+      return P.fmtLevel(ls.level, ls.shuttle);
+    },
     kolone: ['nivo', 'deonica', 'ukupno_deonica', 'metara', 'vreme_s', 'vo2max'],
     kolonePrikaz: ['Nivo', 'Deonica', 'm', 'VO2max'],
     redPrikaz: function (r) {
