@@ -5,7 +5,7 @@
   var P = global.Protocol;
   /* Isti broj stoji i u sw.js (KES) - provera ih uporedjuje, da se ne
      razidju. Kad se objavi izmena, podize se na oba mesta. */
-  var VERZIJA = 'v7';
+  var VERZIJA = 'v8';
   var app = document.getElementById('app');
   var trakaEl = document.getElementById('traka');
 
@@ -172,6 +172,7 @@
     { re: /^#\/novi-igrac$/, f: function () { ekranFormaIgraca(null); } },
     { re: /^#\/testovi$/, f: ekranTestovi },
     { re: /^#\/test\/([^/]+)$/, f: ekranTest },
+    { re: /^#\/izvestaj\/([^/]+)$/, f: ekranIzvestaj },
     { re: /^#\/novi$/, f: ekranIzborTesta },
     { re: /^#\/novi\/beep$/, f: ekranPriprema },
     { re: /^#\/unos\/([^/]+)$/, f: ekranUnos },
@@ -408,6 +409,19 @@
     });
   }
 
+  /* Gde igrac stoji u svojoj grupi. Ovo nije percentil i ne predstavlja se
+     kao takav - poredi se sa onim sto je u evidenciji, i tako i pise. */
+  function redPoredjenja(igracId, v) {
+    if (!igracId) return '';
+    var p = global.Uporedi.zaIgraca(igracId, v.id);
+    if (!p || p.od < 3) return '';
+    return '<div class="poredjenje">' +
+      '<b>' + p.rang + '. od ' + p.od + '</b> u grupi ' + esc(p.grupa || 'bez grupe') +
+      '<div class="slab">' + [esc(global.Uporedi.opisProseka(p)), 'poslednjih godinu dana']
+        .filter(Boolean).join(' · ') + '</div>' +
+      '</div>';
+  }
+
   function karticaVrste(g) {
     var v = g.vrsta, rez = g.rez;
     var najbolji = v.poredi ? rez.reduce(function (a, r) {
@@ -432,6 +446,7 @@
       mnozina(rez.length, 'merenje', 'merenja', 'merenja') + '</div></div>' +
       '</div>' +
       (napredak ? '<div class="sredina slab" style="margin-top:8px">u odnosu na prethodni: <b>' + esc(napredak) + '</b></div>' : '') +
+      redPoredjenja(rez[0] ? rez[0].igracId : null, v) +
       grafikon(rez, v) +
       /* U kartonu stoji samo rezultat - sve kolone tog testa su jedan dodir
          dalje, na ekranu testiranja, i ovde bi pobegle sa telefona. */
@@ -1019,8 +1034,10 @@
           '</tr>';
       }).join('') +
       '</table></div></div>' +
-      '<div class="dugmad razmak"><button id="csv">Izvezi CSV</button>' +
-      '<button class="opasno" id="obrisi">Obriši test</button></div>';
+      '<div class="dugmad razmak">' +
+      '<a class="dugme glavno" href="#/izvestaj/' + esc(t.id) + '">Izveštaj</a>' +
+      '<button id="csv">Izvezi CSV</button></div>' +
+      '<div class="dugmad razmak"><button class="opasno" id="obrisi">Obriši test</button></div>';
 
     app.querySelector('#nazad').addEventListener('click', function () { idi('#/testovi'); });
     app.querySelector('#csv').addEventListener('click', function () {
@@ -1318,6 +1335,72 @@
     });
     poruka(rezultati.length + ' rezultat(a) sačuvano.');
     idi('#/test/' + t.id);
+  }
+
+  /* ---------- izvestaj o testiranju ---------- */
+
+  /* Ono sto se pokazuje klubu i roditelju: ko je gde, koliko je prosek i
+     ko je napredovao u odnosu na prosli put. Stampa se sa telefona. */
+  function ekranIzvestaj(id) {
+    var p = global.Uporedi.zaTestiranje(id);
+    if (!p) { idi('#/testovi'); return; }
+    var v = p.vrsta, t = p.test;
+
+    app.innerHTML =
+      '<div class="zaglavlje bez-stampe"><button class="tiho" id="nazad">‹ Nazad</button>' +
+      '<h1 class="rast skraceno">Izveštaj</h1>' +
+      '<button class="malo" id="stampaj">Štampaj</button></div>' +
+      '<div class="izvestaj">' +
+      '<div class="kartica g-' + v.kljucGrupe + '">' +
+      '<h2>' + esc(t.naziv || v.naziv) + '</h2>' +
+      '<div class="slab">' + [esc(v.naziv), fmtDatum(t.datum), t.lokacija ? esc(t.lokacija) : '']
+        .filter(Boolean).join(' · ') + '</div>' +
+      (t.beleska ? '<div class="razmak">' + esc(t.beleska) + '</div>' : '') +
+      '</div>' +
+
+      '<div class="kartica"><div class="red sredina">' +
+      '<div class="rast"><div class="krupno">' + p.ucesnika + '</div><div class="natpis">učesnika</div></div>' +
+      (p.prosek != null ? '<div class="rast"><div class="krupno">' +
+        esc(v.osa ? v.osa(p.prosek) : global.Testovi.broj(p.prosek, v.decimala || 0)) +
+        '</div><div class="natpis">prosek</div></div>' : '') +
+      (p.redovi.length ? '<div class="rast"><div class="krupno">' + esc(v.prikaz(p.redovi[0].rezultat)) +
+        '</div><div class="natpis">najbolji</div></div>' : '') +
+      '</div>' +
+      (p.napredovalo + p.nazadovalo > 0
+        ? '<div class="sredina slab razmak">u odnosu na prethodno testiranje: <b>' + p.napredovalo +
+          '</b> napredovalo, <b>' + p.nazadovalo + '</b> slabije</div>' : '') +
+      '</div>' +
+
+      '<div class="kartica"><h2>Poredak</h2><table class="tabela">' +
+      '<tr><th>#</th><th>Igrač</th><th class="broj">Rezultat</th><th class="broj">Pomak</th></tr>' +
+      p.redovi.map(function (red) {
+        var r = red.rezultat;
+        var pomak = red.pomak;
+        var tekstPomaka = '—';
+        if (pomak) {
+          var znak = pomak.razlika > 0 ? '+' : (pomak.razlika < 0 ? '−' : '');
+          tekstPomaka = znak + global.Testovi.broj(Math.abs(pomak.razlika), v.decimala || 0);
+        }
+        return '<tr><td>' + red.mesto + '</td>' +
+          '<td>' + esc(r.ime) + (r.broj ? ' <span class="slab">#' + esc(r.broj) + '</span>' : '') +
+          (r.grupa ? '<div class="slab">' + esc(r.grupa) +
+            (r.status && r.status !== 'zavrsio' ? ' · ' + esc(statusTekst(r.status)) : '') + '</div>' : '') + '</td>' +
+          '<td class="broj"><b>' + esc(v.prikaz(r)) + '</b></td>' +
+          '<td class="broj ' + (pomak ? (pomak.bolje ? 'bolje' : (pomak.razlika ? 'slabije' : '')) : '') + '">' +
+          esc(tekstPomaka) + '</td></tr>';
+      }).join('') +
+      '</table>' +
+      '<div class="slab razmak">Pomak je razlika u odnosu na prethodno testiranje istog testa' +
+      (v.jedinica ? ', u jedinici „' + esc(v.jedinica) + '“' : '') + '. ' +
+      (v.boljeJe === 'manje' ? 'Kod ovog testa je manji broj bolji.' : '') + '</div>' +
+      '</div>' +
+
+      '<div class="slab sredina razmak">Poređenje je u odnosu na evidenciju ovog kluba, ' +
+      'ne u odnosu na norme za uzrast.</div>' +
+      '</div>';
+
+    app.querySelector('#nazad').addEventListener('click', function () { idi('#/test/' + t.id); });
+    app.querySelector('#stampaj').addEventListener('click', function () { global.print(); });
   }
 
   /* ---------- podesavanja ---------- */

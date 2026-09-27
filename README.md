@@ -43,6 +43,22 @@ a izmerene se upisuju nazad u karton — ali samo ako je to najskorije merenje, 
 upisano staro merenje ne pregazi novije. Raspon ruku i dohvat stoje uz igrača sa datumom
 merenja i čuvaju istoriju kroz sezone.
 
+## Poređenje i izveštaj
+
+Uz svaki rezultat u kartonu stoji i **mesto u grupi** — npr. „7. od 10 u grupi Kadeti,
+slabije od proseka za 5 deonica, poslednjih godinu dana". U poređenje ulazi najbolji
+rezultat svakog igrača iz poslednjih godinu dana; starije merenje ne govori kakav je igrač
+danas.
+
+> To **nije percentil**. Percentil znači „bolji od 78% populacije" i traži uzorak koji ova
+> aplikacija nema. Poredi se sa onim što stoji u evidenciji kluba, i tako i piše. Kad se
+> dobiju prave norme (sa izvorom, uzorkom i godinom), ulaze u isti mehanizam kao još jedan
+> izvor poređenja.
+
+Svako testiranje ima i **izveštaj** (`#/izvestaj/<id>`): učesnici, prosek, najbolji, poredak
+sa pomakom u odnosu na prethodno testiranje, i koliko je igrača napredovalo. Štampa se sa
+telefona — dugme *Štampaj* daje PDF koji ide klubu ili roditelju.
+
 Svaki test ima svoj grafikon napretka u kartonu igrača i svoje kolone u CSV-u. Šta je koji
 test, u čemu se meri i šta je bolji rezultat stoji na jednom mestu — u `js/testovi.js`.
 
@@ -135,6 +151,7 @@ sw.js                     offline kes
 icons/                    ikone aplikacije
 js/protocol.js            tabela nivoa, deonice, VO2max, pretvaranja
 js/testovi.js             registar testova: sta je koji test i sta je bolje
+js/uporedi.js             poredjenje: mesto u grupi, prosek, napredak
 js/data.js                cuvanje igraca, testova i podesavanja
 js/audio.js               signali (Web Audio) i govorna najava nivoa
 js/run.js                 motor testiranja: sat, opomene, ispadanja
@@ -143,6 +160,7 @@ test/protokol.test.js     provera racuna
 test/motor.test.js        provera motora testiranja
 test/podaci.test.js       provera cuvanja, izvoza i uvoza
 test/registar.test.js     provera registra testova
+test/uporedi.test.js      provera poredjenja
 test/ekrani.html          provera ekrana, u pregledacu
 ```
 

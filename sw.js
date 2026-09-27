@@ -1,6 +1,6 @@
 /* Offline rad: aplikacija se drzi u kesu pregledaca, pa radi i bez mreze -
    u sali, na terenu, na iskljucenim podacima. */
-var KES = 'beep-test-v7';
+var KES = 'beep-test-v8';
 var DATOTEKE = [
   './',
   './app.css',
@@ -8,6 +8,7 @@ var DATOTEKE = [
   './js/protocol.js',
   './js/testovi.js',
   './js/data.js',
+  './js/uporedi.js',
   './js/audio.js',
   './js/run.js',
   './js/app.js',
