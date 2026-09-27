@@ -14,6 +14,22 @@
   --plava: #1f6feb;
   --senka: 0 1px 3px rgba(0, 0, 0, .12);
   --r: 12px;
+
+  /* skala slova - da se glavno razlikuje od uzgrednog */
+  --f-xs: .78rem;
+  --f-s: .875rem;
+  --f-l: 1.15rem;
+  --f-xl: 1.4rem;
+  --f-2xl: 2rem;
+  --f-3xl: 3.2rem;
+
+  /* grupe testova - boja nosi znacenje, nije ukras */
+  --g-izdrzljivost: #0f7b4f;
+  --g-skok: #7b3fb0;
+  --g-brzina: #1f6feb;
+  --g-agilnost: #c2681a;
+  --g-merenje: #5d6674;
+  --akcenat: var(--glavna);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,6 +45,11 @@
     --opasnost: #e0524f;
     --plava: #4b8ef7;
     --senka: none;
+    --g-izdrzljivost: #24a76c;
+    --g-skok: #a879dd;
+    --g-brzina: #4b8ef7;
+    --g-agilnost: #e0913f;
+    --g-merenje: #9aa5b4;
   }
 }
 
@@ -48,8 +69,8 @@ html, body {
 body { padding-bottom: env(safe-area-inset-bottom); }
 
 h1, h2, h3 { margin: 0 0 .5rem; line-height: 1.2; }
-h1 { font-size: 1.35rem; }
-h2 { font-size: 1.1rem; }
+h1 { font-size: var(--f-xl); letter-spacing: -.01em; }
+h2 { font-size: var(--f-l); }
 p { margin: 0 0 .75rem; }
 a { color: var(--plava); }
 
@@ -83,14 +104,29 @@ a { color: var(--plava); }
   border-radius: var(--r); padding: 12px; margin-bottom: 10px;
   box-shadow: var(--senka);
 }
+/* boja grupe testa - leva traka na kartici, tacka u spisku */
+.g-izdrzljivost { --akcenat: var(--g-izdrzljivost); }
+.g-skok { --akcenat: var(--g-skok); }
+.g-brzina { --akcenat: var(--g-brzina); }
+.g-agilnost { --akcenat: var(--g-agilnost); }
+.g-merenje { --akcenat: var(--g-merenje); }
+.kartica[class*="g-"] { border-left: 3px solid var(--akcenat); }
+.stavka .tacka {
+  flex: none; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--akcenat); margin-right: 2px;
+}
+
 .kartica.klik { cursor: pointer; }
 .kartica.klik:active { transform: scale(.995); }
 
 .red { display: flex; align-items: center; gap: 10px; }
 .red .rast { flex: 1; min-width: 0; }
-.slab { color: var(--tekst-slab); font-size: .85rem; }
-.krupno { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.slab { color: var(--tekst-slab); font-size: var(--f-s); }
+.krupno { font-size: var(--f-2xl); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: -.02em; }
+.ogroman { font-size: var(--f-3xl); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -.03em; }
 .skraceno { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* rezultat uz ime: broj drzi svoju sirinu, ime se prelama umesto da se sece */
+.ishod { flex: none; text-align: right; min-width: 5.5rem; }
 .razmak { margin-top: 14px; }
 .sredina { text-align: center; }
 
@@ -129,6 +165,9 @@ input[type="checkbox"] { width: auto; min-height: 0; }
 .znak.crveno { background: var(--opasnost); border-color: var(--opasnost); color: #fff; }
 
 .prazno { text-align: center; color: var(--tekst-slab); padding: 32px 12px; }
+.uputstvo ol { margin: 0; padding-left: 1.2rem; }
+.uputstvo li { margin-bottom: 8px; color: var(--tekst-slab); }
+.uputstvo li b { color: var(--tekst); }
 
 /* ---------- izbor ucesnika ---------- */
 
@@ -160,9 +199,9 @@ body.trci { overflow: hidden; }
   background: var(--kartica); border-bottom: 1px solid var(--ivica);
 }
 .tok .brojevi { display: flex; align-items: baseline; gap: 14px; }
-.tok .nivo { font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
-.tok .sat { font-size: 1.1rem; font-variant-numeric: tabular-nums; color: var(--tekst-slab); }
-.tok .napredak { height: 8px; background: var(--ivica); border-radius: 999px; margin-top: 8px; overflow: hidden; }
+.tok .nivo { font-size: var(--f-3xl); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -.03em; }
+.tok .sat { font-size: var(--f-l); font-variant-numeric: tabular-nums; color: var(--tekst-slab); }
+.tok .napredak { height: 10px; background: var(--ivica); border-radius: 999px; margin-top: 8px; overflow: hidden; }
 .tok .napredak i { display: block; height: 100%; background: var(--glavna); width: 0; }
 .tok .napredak.uskoro i { background: var(--upozorenje); }
 
@@ -178,14 +217,14 @@ body.trci { overflow: hidden; }
 .plocice.gusto .plocica .ime { font-size: .8rem; }
 .plocice.gusto .plocica .rez { font-size: 1.05rem; }
 .plocica {
-  position: relative; border: 2px solid var(--ivica); border-radius: var(--r);
+  position: relative; border: 3px solid var(--ivica); border-radius: var(--r);
   background: var(--kartica); padding: 8px 6px; min-height: 92px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px; text-align: center; cursor: pointer; user-select: none;
 }
-.plocica .ime { font-weight: 700; font-size: .92rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plocica .ime { font-weight: 700; font-size: 1rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plocica .dres { font-size: .72rem; color: var(--tekst-slab); }
-.plocica .rez { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.plocica .rez { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .plocica.aktivan { border-color: var(--glavna); }
 .plocica.opomena { border-color: var(--upozorenje); background: color-mix(in srgb, var(--upozorenje) 18%, var(--kartica)); }
 .plocica.ispao, .plocica.odustao, .plocica.povreda {
@@ -199,7 +238,7 @@ body.trci { overflow: hidden; }
   margin-top: 2px; width: 100%; max-width: 100%;
 }
 .plocica .podnozje .dres { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plocica .podnozje button { flex: none; min-height: 26px; padding: 1px 8px; font-size: .7rem; }
+.plocica .podnozje button { flex: none; min-height: 38px; padding: 4px 12px; font-size: var(--f-xs); }
 
 .tok .dno {
   display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));

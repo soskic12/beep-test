@@ -34,6 +34,7 @@
 
   function saPokusajima(def) {
     def.unos = 'pokusaji';
+    def.poredi = true;
     /* Sto se meri na vreme moze da se izmeri i telefonom. */
     def.stoperica = def.jedinica === 's';
     def.glavna = function (r) {
@@ -77,6 +78,8 @@
 
   function saPoljima(def) {
     def.unos = 'polja';
+    /* Merenje tela nema "najboljeg" - najvisi igrac nije najbolji rezultat. */
+    def.poredi = false;
     def.glavna = function (r) {
       var v = (r.vrednosti || {})[def.polja[0].kljuc];
       return v == null || v === '' ? null : Number(v);
@@ -107,7 +110,21 @@
 
   var VRSTE = {};
 
-  function dodaj(def) { VRSTE[def.id] = def; return def; }
+  /* Grupa testova nosi boju - da se na spisku vidi sta je izdrzljivost a
+     sta brzina, bez citanja. Kljuc ide u ime CSS klase. */
+  var KLJUC_GRUPE = {
+    'Izdržljivost': 'izdrzljivost',
+    'Skok': 'skok',
+    'Brzina': 'brzina',
+    'Agilnost': 'agilnost',
+    'Merenje': 'merenje'
+  };
+
+  function dodaj(def) {
+    def.kljucGrupe = KLJUC_GRUPE[def.grupa] || 'ostalo';
+    VRSTE[def.id] = def;
+    return def;
+  }
 
   dodaj({
     id: 'beep',
@@ -116,6 +133,7 @@
     grupa: 'Izdržljivost',
     opis: '20 m, 21 nivo, do 21:56 trčanja',
     unos: 'protokol',
+    poredi: true,
     jedinica: 'deonica',
     boljeJe: 'vise',
     decimala: 0,

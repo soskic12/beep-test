@@ -30,8 +30,11 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
      gledao staru sve dok ne zatvori i ne otvori aplikaciju jos jednom.
      Usred testiranja se ne osvezava, da ne prekine merenje. */
   var osvezeno = false;
+  /* Pri prvoj instalaciji nema sta da se osvezava - stranica je vec najnovija.
+     Osvezava se samo kad je ranija verzija zaista smenjena novom. */
+  var imaoKontrolu = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (osvezeno) return;
+    if (!imaoKontrolu || osvezeno) return;
     if ((location.hash || '') === '#/tok') return;
     osvezeno = true;
     location.reload();

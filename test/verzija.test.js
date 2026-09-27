@@ -46,3 +46,11 @@ test('stranica se sama osvezava kad nova verzija preuzme', () => {
   assert.ok(index.indexOf("=== '#/tok'") >= 0,
     'osvezavanje mora da preskoci testiranje u toku, da ne prekine merenje');
 });
+
+test('prva instalacija ne izaziva osvezavanje stranice', () => {
+  const index = procitaj('index.html');
+  assert.ok(index.indexOf('navigator.serviceWorker.controller') >= 0,
+    'mora da se zna da li je ranija verzija uopste postojala');
+  assert.ok(/if \(!imaoKontrolu \|\| osvezeno\) return;/.test(index),
+    'osvezavanje se preskace kad se service worker prvi put instalira');
+});

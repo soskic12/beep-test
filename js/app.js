@@ -5,7 +5,7 @@
   var P = global.Protocol;
   /* Isti broj stoji i u sw.js (KES) - provera ih uporedjuje, da se ne
      razidju. Kad se objavi izmena, podize se na oba mesta. */
-  var VERZIJA = 'v5';
+  var VERZIJA = 'v6';
   var app = document.getElementById('app');
   var trakaEl = document.getElementById('traka');
 
@@ -234,8 +234,7 @@
           return '<option value="' + esc(g) + '"' + (g === filterGrupa ? ' selected' : '') + '>' + esc(g) + '</option>';
         }).join('') + '</select>' : '') +
       '<div class="razmak">' +
-      (lista.length ? lista.map(kartaIgraca).join('') :
-        '<div class="prazno">Nema igrača. Dodaj prvog dugmetom <b>+ Novi</b>.</div>') +
+      (lista.length ? lista.map(kartaIgraca).join('') : prvaUputstva(svi.length)) +
       '</div>' +
       '<div class="sredina razmak"><button class="tiho malo" id="arh">' +
       (prikaziArhivirane ? 'Sakrij arhivirane' : 'Prikaži i arhivirane') + '</button></div>';
@@ -256,25 +255,40 @@
     });
   }
 
+  /* Prazan spisak: trener koji prvi put otvori aplikaciju treba da zna
+     odakle se krece, a ne samo da nema igraca. */
+  function prvaUputstva(imaIgraca) {
+    if (imaIgraca) {
+      return '<div class="prazno">Nijedan igrač ne odgovara pretrazi.</div>';
+    }
+    return '<div class="kartica uputstvo">' +
+      '<h2>Za početak</h2>' +
+      '<ol>' +
+      '<li>Dodaj igrače dugmetom <b>+ Novi</b> — ime, broj dresa i grupa su dovoljni.</li>' +
+      '<li>Idi na <b>Novi test</b> i izaberi šta radiš danas.</li>' +
+      '<li>Posle testiranja napravi <b>rezervnu kopiju</b> u Podešavanjima — podaci stoje samo na ovom uređaju.</li>' +
+      '</ol></div>';
+  }
+
   function kartaIgraca(p) {
     var rez = global.DB.rezultatiIgraca(p.id);
+    /* Poslednji rezultat se prikazuje po svojoj vrsti testa - igrac ima i
+       beep i sprint i merenje, a ta tri se ne porede medjusobno. */
     var zadnji = rez.length ? rez[rez.length - 1] : null;
-    var najbolji = rez.reduce(function (a, r) {
-      return !a || r.ukupnoDeonica > a.ukupnoDeonica ? r : a;
-    }, null);
+    var vrsta = zadnji ? global.Testovi.vrsta(zadnji.vrsta) : null;
     var god = global.DB.godine(p);
     return '<a class="kartica klik red" href="#/igrac/' + esc(p.id) + '" style="color:inherit;text-decoration:none">' +
       '<div class="rast">' +
-      '<div class="skraceno"><b>' + esc(p.ime || '(bez imena)') + '</b>' +
+      '<div class="ime-igraca"><b>' + esc(p.ime || '(bez imena)') + '</b>' +
       (p.broj ? ' <span class="slab">#' + esc(p.broj) + '</span>' : '') +
       (p.arhiviran ? ' <span class="znak">arhiviran</span>' : '') + '</div>' +
       '<div class="slab skraceno">' +
       [p.grupa, god != null ? god + ' god.' : '', rez.length + ' ' + mnozina(rez.length, 'test', 'testa', 'testova')]
         .filter(Boolean).join(' · ') + '</div>' +
       '</div>' +
-      '<div class="sredina">' +
-      (najbolji ? '<div class="krupno">' + P.fmtLevel(najbolji.nivo, najbolji.deonica) + '</div>' +
-        '<div class="slab">najbolje' + (zadnji && zadnji !== najbolji ? ' · zadnje ' + P.fmtLevel(zadnji.nivo, zadnji.deonica) : '') + '</div>'
+      '<div class="sredina ishod">' +
+      (zadnji ? '<div class="krupno">' + esc(vrsta.prikaz(zadnji)) + '</div>' +
+        '<div class="slab">' + esc(vrsta.kratko) + ' · ' + fmtDatum(zadnji.datum) + '</div>'
         : '<div class="slab">nema rezultata</div>') +
       '</div></a>';
   }
@@ -396,9 +410,9 @@
 
   function karticaVrste(g) {
     var v = g.vrsta, rez = g.rez;
-    var najbolji = rez.reduce(function (a, r) {
+    var najbolji = v.poredi ? rez.reduce(function (a, r) {
       return global.Testovi.bolji(v, v.glavna(r), a ? v.glavna(a) : null) ? r : a;
-    }, null);
+    }, null) : null;
     var zadnji = rez[rez.length - 1];
     var pomak = null;
     if (rez.length > 1) {
@@ -410,25 +424,27 @@
         : (global.Testovi.bolji(v, v.glavna(rez[rez.length - 1]), v.glavna(rez[rez.length - 2])) ? 'bolje' : 'slabije') +
           ' za ' + global.Testovi.broj(Math.abs(pomak), v.decimala || 0) + (v.jedinica ? ' ' + v.jedinica : ''));
 
-    return '<div class="kartica"><h2>' + esc(v.naziv) + '</h2>' +
+    return '<div class="kartica g-' + v.kljucGrupe + '"><h2>' + esc(v.naziv) + '</h2>' +
       '<div class="red" style="text-align:center">' +
-      '<div class="rast"><div class="krupno">' + esc(v.prikaz(najbolji)) + '</div><div class="slab">najbolje</div></div>' +
+      (najbolji ? '<div class="rast"><div class="krupno">' + esc(v.prikaz(najbolji)) + '</div><div class="slab">najbolje</div></div>' : '') +
       '<div class="rast"><div class="krupno">' + esc(v.prikaz(zadnji)) + '</div><div class="slab">poslednje</div></div>' +
-      '<div class="rast"><div class="krupno">' + rez.length + '</div><div class="slab">merenja</div></div>' +
+      '<div class="rast"><div class="krupno">' + rez.length + '</div><div class="slab">' +
+      mnozina(rez.length, 'merenje', 'merenja', 'merenja') + '</div></div>' +
       '</div>' +
       (napredak ? '<div class="sredina slab" style="margin-top:8px">u odnosu na prethodni: <b>' + esc(napredak) + '</b></div>' : '') +
       grafikon(rez, v) +
       '<div class="uvijeno" style="margin-top:10px"><table class="tabela">' +
       '<tr><th>Datum</th><th>Test</th>' +
       v.kolonePrikaz.map(function (k) { return '<th class="broj">' + esc(k) + '</th>'; }).join('') +
-      '<th></th></tr>' +
+      '</tr>' +
       rez.slice().reverse().map(function (r) {
         return '<tr><td>' + fmtDatum(r.datum) + '</td>' +
-          '<td class="skraceno"><a href="#/test/' + esc(r.testId) + '">' + esc(r.naziv || 'test') + '</a></td>' +
+          '<td class="skraceno"><a href="#/test/' + esc(r.testId) + '">' + esc(r.naziv || 'test') + '</a>' +
+          (r.status && r.status !== 'zavrsio' ? '<div class="slab">' + esc(statusTekst(r.status)) + '</div>' : '') + '</td>' +
           v.redPrikaz(r).map(function (c) {
             return '<td class="broj">' + (c.jako ? '<b>' + esc(c.tekst) + '</b>' : esc(c.tekst)) + '</td>';
           }).join('') +
-          '<td>' + statusZnak(r.status) + '</td></tr>';
+          '</tr>';
       }).join('') +
       '</table></div></div>';
   }
@@ -912,15 +928,18 @@
       (lista.length ? lista.map(function (t) {
         var v = global.Testovi.vrsta(t.vrsta);
         var rez = t.rezultati || [];
-        var najbolji = rez.reduce(function (a, r) {
+        var najbolji = v.poredi ? rez.reduce(function (a, r) {
           return global.Testovi.bolji(v, v.glavna(r), a ? v.glavna(a) : null) ? r : a;
-        }, null);
-        return '<a class="kartica klik red" href="#/test/' + esc(t.id) + '" style="color:inherit;text-decoration:none">' +
+        }, null) : null;
+        return '<a class="kartica klik red g-' + v.kljucGrupe + '" href="#/test/' + esc(t.id) + '" style="color:inherit;text-decoration:none">' +
           '<div class="rast"><div class="skraceno"><b>' + esc(t.naziv || v.naziv) + '</b></div>' +
           '<div class="slab skraceno">' + esc(v.kratko) + ' · ' + fmtDatum(t.datum) + ' · ' + rez.length + ' učesnika' +
           (t.lokacija ? ' · ' + esc(t.lokacija) : '') + '</div></div>' +
-          '<div class="sredina"><div class="krupno">' + (najbolji ? esc(v.prikaz(najbolji)) : '—') + '</div>' +
-          '<div class="slab">najbolji</div></div></a>';
+          '<div class="sredina ishod">' +
+          (najbolji ? '<div class="krupno">' + esc(v.prikaz(najbolji)) + '</div><div class="slab">najbolji</div>'
+            : '<div class="krupno">' + rez.length + '</div><div class="slab">' +
+              mnozina(rez.length, 'merenje', 'merenja', 'merenja') + '</div>') +
+          '</div></a>';
       }).join('') : '<div class="prazno">Još nema odrađenih testiranja.</div>');
   }
 
@@ -955,15 +974,15 @@
       '<div class="kartica"><div class="uvijeno"><table class="tabela">' +
       '<tr><th>#</th><th>Igrač</th>' +
       v.kolonePrikaz.map(function (k) { return '<th class="broj">' + esc(k) + '</th>'; }).join('') +
-      '<th></th></tr>' +
+      '</tr>' +
       rez.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td>' +
           '<td class="skraceno"><a href="#/igrac/' + esc(r.igracId) + '">' + esc(r.ime) + '</a>' +
-          (r.grupa ? '<div class="slab">' + esc(r.grupa) + '</div>' : '') + '</td>' +
+          '<div class="slab">' + [esc(r.grupa), statusTekst(r.status)].filter(Boolean).join(' · ') + '</div></td>' +
           v.redPrikaz(r).map(function (c) {
             return '<td class="broj">' + (c.jako ? '<b>' + esc(c.tekst) + '</b>' : esc(c.tekst)) + '</td>';
           }).join('') +
-          '<td>' + statusZnak(r.status) + '</td></tr>';
+          '</tr>';
       }).join('') +
       '</table></div></div>' +
       '<div class="dugmad razmak"><button id="csv">Izvezi CSV</button>' +
@@ -1013,8 +1032,9 @@
         return '<div class="kartica testovi"><h2>' + esc(g.grupa) + '</h2>' +
           g.vrste.map(function (v) {
             var skoro = skorasnje.indexOf(v.id) >= 0 ? '<span class="slab"> · rađeno</span>' : '';
-            return '<a class="stavka klik" href="' + (v.unos === 'protokol' ? '#/novi/' + v.id : '#/unos/' + v.id) + '"' +
+            return '<a class="stavka klik g-' + v.kljucGrupe + '" href="' + (v.unos === 'protokol' ? '#/novi/' + v.id : '#/unos/' + v.id) + '"' +
               ' style="color:inherit;text-decoration:none">' +
+              '<span class="tacka"></span>' +
               '<div class="rast"><b>' + esc(v.naziv) + '</b>' + skoro +
               '<div class="slab">' + esc(v.opis) + '</div></div><span class="slab">›</span></a>';
           }).join('') + '</div>';
