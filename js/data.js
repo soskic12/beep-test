@@ -28,10 +28,25 @@
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
+  /* Svaka izmena ostavlja vreme - po njemu se pri sinhronizaciji zna koji je
+     zapis noviji. Ne koristi se za prikaz, samo za spajanje. */
+  function pecat(o) {
+    o.izmenjen = new Date().toISOString();
+    return o;
+  }
+
+  function ziv(o) { return o && !o.obrisan; }
+
   /* Testiranja upisana pre nego sto je bilo vise vrsta testa su beep test. */
   function nadopuni(t) {
     if (t && !t.vrsta) t.vrsta = 'beep';
+    if (t && !t.izmenjen) t.izmenjen = t.datum || new Date(0).toISOString();
     return t;
+  }
+
+  function nadopuniIgraca(p) {
+    if (p && !p.izmenjen) p.izmenjen = p.kreiran || new Date(0).toISOString();
+    return p;
   }
 
   function load() {
@@ -42,7 +57,7 @@
       var s = JSON.parse(raw);
       state = {
         verzija: 1,
-        igraci: Array.isArray(s.igraci) ? s.igraci : [],
+        igraci: (Array.isArray(s.igraci) ? s.igraci : []).map(nadopuniIgraca),
         testovi: (Array.isArray(s.testovi) ? s.testovi : []).map(nadopuni),
         podesavanja: Object.assign(clone(DEFAULT_SETTINGS), s.podesavanja || {})
       };
@@ -69,7 +84,9 @@
   /* Redosled po srpskoj latinici: C, C-kvacica, C-crtica, ..., D, DZ, Dj.
      Oznaka 'sr' je cirilicka, pa na latinicu daje pogresan red. */
   function igraci(saArhiviranim) {
-    var list = get().igraci.filter(function (p) { return saArhiviranim || !p.arhiviran; });
+    var list = get().igraci.filter(function (p) {
+      return ziv(p) && (saArhiviranim || !p.arhiviran);
+    });
     return list.sort(function (a, b) {
       var g = (a.grupa || '').localeCompare(b.grupa || '', 'sr-Latn');
       if (g !== 0) return g;
@@ -79,7 +96,7 @@
 
   function igrac(id) {
     var list = get().igraci;
-    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id && ziv(list[i])) return list[i];
     return null;
   }
 
@@ -97,6 +114,7 @@
       arhiviran: false,
       kreiran: new Date().toISOString()
     };
+    pecat(novi);
     get().igraci.push(novi);
     save();
     return novi;
@@ -106,6 +124,7 @@
     var p = igrac(id);
     if (!p) return null;
     Object.keys(patch).forEach(function (k) { p[k] = patch[k]; });
+    pecat(p);
     save();
     return p;
   }
@@ -114,9 +133,12 @@
     return izmeniIgraca(id, { arhiviran: !!arhiviran });
   }
 
+  /* Brisanje ostavlja trag: zapis ostaje sa oznakom obrisan, da se pri
+     sinhronizaciji ne vrati sa drugog telefona kao "novi". */
   function obrisiIgraca(id) {
-    var s = get();
-    s.igraci = s.igraci.filter(function (p) { return p.id !== id; });
+    get().igraci.forEach(function (p) {
+      if (p.id === id) { p.obrisan = true; pecat(p); }
+    });
     save();
   }
 
@@ -141,20 +163,21 @@
   /* ---------- testovi ---------- */
 
   function testovi() {
-    return get().testovi.slice().sort(function (a, b) {
+    return get().testovi.filter(ziv).sort(function (a, b) {
       return (b.datum || '').localeCompare(a.datum || '');
     });
   }
 
   function test(id) {
     var list = get().testovi;
-    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id && ziv(list[i])) return list[i];
     return null;
   }
 
   function sacuvajTest(t) {
     var s = get();
     nadopuni(t);
+    pecat(t);
     upisiUKarton(t);
     if (t.id) {
       for (var i = 0; i < s.testovi.length; i++) {
@@ -187,6 +210,7 @@
 
   function imaNovijeMerenje(igracId, ovaj) {
     return get().testovi.some(function (t) {
+      if (!ziv(t)) return false;
       if (t.id === ovaj.id || t.vrsta !== ovaj.vrsta) return false;
       if ((t.datum || '') <= (ovaj.datum || '')) return false;
       return (t.rezultati || []).some(function (r) { return r.igracId === igracId; });
@@ -200,8 +224,9 @@
   }
 
   function obrisiTest(id) {
-    var s = get();
-    s.testovi = s.testovi.filter(function (t) { return t.id !== id; });
+    get().testovi.forEach(function (t) {
+      if (t.id === id) { t.obrisan = true; pecat(t); }
+    });
     save();
   }
 
@@ -209,6 +234,7 @@
   function rezultatiIgraca(igracId, vrsta) {
     var out = [];
     get().testovi.forEach(function (t) {
+      if (!ziv(t)) return;
       if (vrsta && (t.vrsta || 'beep') !== vrsta) return;
       (t.rezultati || []).forEach(function (r) {
         if (r.igracId === igracId) {
@@ -265,6 +291,57 @@
     var najnovije = lista[0].datum || '';
     var kopija = get().podesavanja.poslednjaKopija || '';
     return najnovije > kopija ? najnovije : null;
+  }
+
+  /* ---------- sinhronizacija ---------- */
+
+  /* Sve sto je menjano od zadatog trenutka - i obrisano, jer i brisanje je
+     promena koju drugi telefon mora da sazna.
+
+     Granica hvata i samu milisekundu, ne samo posle nje: promena koja se desi
+     u istoj milisekundi kao i sinhronizacija inace ne bi otisla nikad. Zapis
+     viska ne smeta jer spajanje preskace ono sto nije novije. */
+  function promene(odKad) {
+    var granica = odKad || '';
+    var s = get();
+    function posle(o) { return (o.izmenjen || '') >= granica; }
+    return {
+      igraci: s.igraci.filter(posle),
+      testovi: s.testovi.filter(posle)
+    };
+  }
+
+  /* Spajanje: pobedjuje zapis sa novijim pecatom. Kod istog vremena ostaje
+     zatecen, da spajanje bude ponovljivo i ne zavisi od redosleda. */
+  function spoji(spolja) {
+    var s = get();
+    var izvestaj = { dodato: 0, osvezeno: 0, preskoceno: 0 };
+
+    function spojiJedno(nasi, novi) {
+      for (var i = 0; i < nasi.length; i++) {
+        if (nasi[i].id !== novi.id) continue;
+        if ((novi.izmenjen || '') > (nasi[i].izmenjen || '')) {
+          nasi[i] = novi;
+          izvestaj.osvezeno++;
+        } else {
+          izvestaj.preskoceno++;
+        }
+        return nasi;
+      }
+      nasi.push(novi);
+      izvestaj.dodato++;
+      return nasi;
+    }
+
+    ((spolja && spolja.igraci) || []).forEach(function (p) {
+      s.igraci = spojiJedno(s.igraci, nadopuniIgraca(p));
+    });
+    ((spolja && spolja.testovi) || []).forEach(function (t) {
+      s.testovi = spojiJedno(s.testovi, nadopuni(t));
+    });
+
+    save();
+    return izvestaj;
   }
 
   /* ---------- izvoz / uvoz ---------- */
@@ -365,6 +442,8 @@
     izvoz: izvoz,
     uvoz: uvoz,
     csv: csv,
+    promene: promene,
+    spoji: spoji,
     nijeUKopiji: nijeUKopiji,
     zapamtiKopiju: zapamtiKopiju,
     csvTesta: csvTesta,

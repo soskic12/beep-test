@@ -161,6 +161,9 @@ test/motor.test.js        provera motora testiranja
 test/podaci.test.js       provera cuvanja, izvoza i uvoza
 test/registar.test.js     provera registra testova
 test/uporedi.test.js      provera poredjenja
+test/sinhronizacija.test.js  provera spajanja evidencije
+server/shema.sql          baza za zajednicku evidenciju kluba
+server/UPUTSTVO.md        kako se server postavlja
 test/ekrani.html          provera ekrana, u pregledacu
 ```
 
