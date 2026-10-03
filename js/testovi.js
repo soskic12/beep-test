@@ -43,33 +43,50 @@
     pantljika: { id: 'pantljika', naziv: 'pantljika i vaga', opis: 'ručno merenje tela' }
   };
 
+  /* Kod testova sa osnovicom (skok na zidu) upisuje se dohvat u skoku, a
+     rezultat je razlika u odnosu na dohvat u stojecem stavu. */
+  function izracunajNajbolji(def, r) {
+    var najbolji = najboljiPokusaj(r.pokusaji, def.boljeJe);
+    if (najbolji == null) return null;
+    if (!def.osnovica) return najbolji;
+    if (r.osnovica == null || r.osnovica === '') return null;
+    return najbolji - Number(r.osnovica);
+  }
+
   function saPokusajima(def) {
     def.unos = 'pokusaji';
     if (!def.nacini) def.nacini = def.jedinica === 's' ? ['ruka', 'celije'] : ['zid', 'traka'];
+    /* sto se upisuje po pokusaju - kod skoka nije rezultat nego dohvat */
+    if (!def.nazivPokusaja) def.nazivPokusaja = def.osnovica ? 'dohvat' : 'pokušaj';
     /* Osa grafikona govori istim jezikom kao rezultat. */
     def.osa = function (x) { return broj(x, def.decimala); };
     def.poredi = true;
     /* Sto se meri na vreme moze da se izmeri i telefonom. */
     def.stoperica = def.jedinica === 's';
     def.glavna = function (r) {
-      return r.najbolji == null ? najboljiPokusaj(r.pokusaji, def.boljeJe) : r.najbolji;
+      if (r.najbolji != null) return r.najbolji;
+      return izracunajNajbolji(def, r);
     };
     def.prikaz = function (r) {
       var v = def.glavna(r);
       return v == null ? '—' : broj(v, def.decimala) + (def.jedinica ? ' ' + def.jedinica : '');
     };
     def.izracunaj = function (r) {
-      r.najbolji = najboljiPokusaj(r.pokusaji, def.boljeJe);
+      r.najbolji = izracunajNajbolji(def, r);
       return r;
     };
-    def.kolone = ['rezultat'].concat(
-      Array.apply(null, Array(def.pokusaja)).map(function (x, i) { return 'pokusaj_' + (i + 1); })
-    );
-    def.kolonePrikaz = ['Rezultat'].concat(
-      Array.apply(null, Array(def.pokusaja)).map(function (x, i) { return String(i + 1); })
-    );
+    def.kolone = ['rezultat']
+      .concat(def.osnovica ? ['dohvat_stojeci'] : [])
+      .concat(Array.apply(null, Array(def.pokusaja)).map(function (x, i) { return 'pokusaj_' + (i + 1); }));
+    def.kolonePrikaz = ['Rezultat']
+      .concat(def.osnovica ? ['stojeći'] : [])
+      .concat(Array.apply(null, Array(def.pokusaja)).map(function (x, i) { return String(i + 1); }));
     def.redPrikaz = function (r) {
       return [{ tekst: def.prikaz(r), jako: true }].concat(
+        def.osnovica
+          ? [{ tekst: r.osnovica == null || r.osnovica === '' ? '—' : broj(Number(r.osnovica), def.decimala) }]
+          : []
+      ).concat(
         Array.apply(null, Array(def.pokusaja)).map(function (x, i) {
           var v = (r.pokusaji || [])[i];
           return { tekst: v == null || v === '' ? '—' : broj(Number(v), def.decimala) };
@@ -79,6 +96,8 @@
     def.red = function (r) {
       var v = def.glavna(r);
       return [v == null ? '' : zaokruzi(v, def.decimala)].concat(
+        def.osnovica ? [r.osnovica == null || r.osnovica === '' ? '' : zaokruzi(Number(r.osnovica), def.decimala)] : []
+      ).concat(
         Array.apply(null, Array(def.pokusaja)).map(function (x, i) {
           var p = (r.pokusaji || [])[i];
           return p == null || p === '' ? '' : zaokruzi(Number(p), def.decimala);
@@ -188,7 +207,8 @@
     naziv: 'Skok iz mesta',
     kratko: 'Skok',
     grupa: 'Skok',
-    opis: 'visina skoka bez zaleta, u centimetrima',
+    opis: 'dohvat u skoku minus dohvat u stojećem stavu, bez zaleta',
+    osnovica: 'dohvat',
     jedinica: 'cm',
     boljeJe: 'vise',
     decimala: 0,
@@ -200,7 +220,8 @@
     naziv: 'Skok sa zaletom',
     kratko: 'Skok zalet',
     grupa: 'Skok',
-    opis: 'visina skoka iz zaleta, u centimetrima',
+    opis: 'isto, ali iz zaleta — meri se najviši dohvat',
+    osnovica: 'dohvat',
     jedinica: 'cm',
     boljeJe: 'vise',
     decimala: 0,

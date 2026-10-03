@@ -253,13 +253,15 @@ test('CSV jednog testiranja prati vrstu - skok ima pokusaje umesto nivoa', () =>
   const w = napraviProzor();
   const t = w.DB.sacuvajTest({
     vrsta: 'skok-mesto', naziv: 'Skokovi', datum: '2025-03-01T10:00:00.000Z',
-    rezultati: [{ igracId: 'a', ime: 'Mika', pokusaji: [58, 61, 60], najbolji: 61, status: 'zavrsio' }]
+    rezultati: [{ igracId: 'a', ime: 'Mika', osnovica: 240, pokusaji: [296, 301, 300], najbolji: 61, status: 'zavrsio' }]
   });
   const redovi = w.DB.csvTesta(w.DB.test(t.id)).split('\r\n');
-  assert.strictEqual(redovi[0], 'datum;test;igrac;broj;grupa;rezultat;pokusaj_1;pokusaj_2;pokusaj_3;status;beleska');
+  assert.strictEqual(redovi[0],
+    'datum;test;igrac;broj;grupa;rezultat;dohvat_stojeci;pokusaj_1;pokusaj_2;pokusaj_3;status;beleska');
   const polja = redovi[1].split(';');
-  assert.strictEqual(polja[5], '61', 'upisuje se najbolji pokusaj');
-  assert.deepStrictEqual(polja.slice(6, 9), ['58', '61', '60']);
+  assert.strictEqual(polja[5], '61', 'upisuje se visina skoka, ne dohvat');
+  assert.strictEqual(polja[6], '240', 'uz njega i dohvat u stojećem stavu');
+  assert.deepStrictEqual(polja.slice(7, 10), ['296', '301', '300']);
 });
 
 test('CSV stiti polja sa tacka-zarezom, navodnicima i novim redom', () => {

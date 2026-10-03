@@ -5,7 +5,7 @@
   var P = global.Protocol;
   /* Isti broj stoji i u sw.js (KES) - provera ih uporedjuje, da se ne
      razidju. Kad se objavi izmena, podize se na oba mesta. */
-  var VERZIJA = 'v9';
+  var VERZIJA = 'v10';
   var app = document.getElementById('app');
   var trakaEl = document.getElementById('traka');
 
@@ -1154,7 +1154,7 @@
   app.addEventListener('input', function (e) {
     var m = (global.location.hash || '').match(/^#\/unos\/([^/]+)$/);
     if (!m) return;
-    var polje = e.target.closest('input[data-pokusaj]');
+    var polje = e.target.closest('input[data-pokusaj], input[data-osnovica]');
     if (!polje) return;
     var kart = polje.closest('.kartica[data-id]');
     if (!kart) return;
@@ -1162,20 +1162,22 @@
     var vrednosti = Array.prototype.map.call(kart.querySelectorAll('input[data-pokusaj]'), function (x) {
       return uBroj(x.value);
     });
-    var najbolji = global.Testovi.najboljiPokusaj(vrednosti, v.boljeJe);
+    var osnovica = kart.querySelector('input[data-osnovica]');
+    var zapis = { pokusaji: vrednosti };
+    if (osnovica) zapis.osnovica = uBroj(osnovica.value);
     var polje2 = kart.querySelector('[data-polje="najbolji"]');
-    if (polje2) polje2.textContent = najbolji == null ? '—' : v.prikaz({ najbolji: najbolji });
+    if (polje2) polje2.textContent = v.prikaz(zapis);
   });
 
   function redUnosa(p, v) {
     var polja = v.unos === 'pokusaji'
-      ? Array.apply(null, Array(v.pokusaja)).map(function (x, i) {
-          return '<div class="rast"><label class="slab" for="' + esc(p.id) + '-' + i + '">' + (i + 1) + '. pokušaj</label>' +
+      ? (v.osnovica ? [osnovicaPolje(p, v)] : []).concat(Array.apply(null, Array(v.pokusaja)).map(function (x, i) {
+          return '<div class="rast"><label class="slab" for="' + esc(p.id) + '-' + i + '">' + (i + 1) + '. ' + esc(v.nazivPokusaja) + '</label>' +
             '<div class="red" style="gap:4px">' +
             '<input class="rast" id="' + esc(p.id) + '-' + i + '" data-pokusaj="' + i + '" inputmode="decimal" placeholder="' + esc(v.jedinica) + '">' +
             (v.stoperica ? '<button class="malo" type="button" data-stoperica="' + i + '" title="štoperica">⏱</button>' : '') +
             '</div></div>';
-        })
+        }))
       : v.polja.map(function (f) {
           /* zatecena vrednost se ponudi, pa se menja samo ono sto je izmereno */
           var sad = zatecenaMera(p, v, f);
@@ -1283,6 +1285,16 @@
     return vrednost == null ? '' : vrednost;
   }
 
+  /* Dohvat u stojecem stavu: ponudi se iz poslednjeg merenja tela, pa trener
+     ne mora da ga meri ponovo - ali sme da ga ispravi na licu mesta. */
+  function osnovicaPolje(p, v) {
+    var zadnje = global.DB.poslednjeMerenje(p.id);
+    var dohvat = zadnje && zadnje.vrednosti ? zadnje.vrednosti.dohvat : null;
+    return '<div class="rast osnovica"><label class="slab" for="' + esc(p.id) + '-osnovica">dohvat u stojećem stavu</label>' +
+      '<input id="' + esc(p.id) + '-osnovica" data-osnovica="1" inputmode="decimal"' +
+      ' value="' + esc(dohvat == null ? '' : dohvat) + '" placeholder="cm"></div>';
+  }
+
   /* Broj iz polja: prihvata i zarez, jer tako pise na nasoj tastaturi. */
   function uBroj(tekst) {
     var t = String(tekst == null ? '' : tekst).trim().replace(',', '.');
@@ -1311,6 +1323,10 @@
           return uBroj(x.value);
         });
         if (!r.pokusaji.some(function (x) { return x != null; })) return;
+        var polje = kart.querySelector('input[data-osnovica]');
+        /* dohvat se pamti uz rezultat: novo merenje tela ne sme naknadno da
+           promeni stare skokove */
+        if (polje) r.osnovica = uBroj(polje.value);
         v.izracunaj(r);
       } else {
         r.vrednosti = {};

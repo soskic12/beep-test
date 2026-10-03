@@ -205,8 +205,12 @@ input[type="checkbox"] { width: auto; min-height: 0; }
 .testovi .stavka:last-child { border-bottom: 0; }
 
 /* unos rezultata: polja za pokusaje stoje jedno uz drugo */
+.unos .red { flex-wrap: wrap; }
 .unos .red input { text-align: center; }
 .unos label { margin-top: 0; }
+/* dohvat u stojecem stavu ide u svoj red - ne stiska pokusaje */
+.unos .osnovica { flex-basis: 100%; }
+.unos .red .rast { min-width: 5.5rem; }
 
 /* ---------- ekran testiranja ---------- */
 

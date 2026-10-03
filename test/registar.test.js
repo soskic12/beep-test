@@ -56,7 +56,8 @@ test('rezultat se prikazuje u nasem zapisu, sa jedinicom', () => {
   const sprint = T.vrsta('sprint-20');
   assert.strictEqual(sprint.prikaz({ pokusaji: [3.214, 3.09] }), '3,09 s', 'zarez i dve decimale');
   const skok = T.vrsta('skok-mesto');
-  assert.strictEqual(skok.prikaz({ pokusaji: [58, 61] }), '61 cm');
+  assert.strictEqual(skok.prikaz({ osnovica: 240, pokusaji: [296, 301] }), '61 cm',
+    'skok je razlika dohvata: 301 − 240');
   assert.strictEqual(skok.prikaz({ pokusaji: [] }), '—', 'bez rezultata stoji crta');
 });
 
@@ -142,4 +143,29 @@ test('svaki test zna čime se meri, i prvi način je onaj bez opreme', () => {
   assert.deepStrictEqual(T.vrsta('skok-mesto').nacini, ['zid', 'traka']);
   assert.deepStrictEqual(T.vrsta('beep').nacini, ['protokol'], 'beep ne zavisi od opreme');
   assert.strictEqual(T.nacin('ruka').naziv, 'štoperica');
+});
+
+test('skok se računa kao razlika dohvata, i pamti dohvat uz rezultat', () => {
+  const skok = T.vrsta('skok-mesto');
+  assert.strictEqual(skok.osnovica, 'dohvat');
+  assert.strictEqual(skok.nazivPokusaja, 'dohvat', 'na terenu se upisuje dohvat, ne visina skoka');
+
+  const r = skok.izracunaj({ osnovica: 240, pokusaji: [296, 301, 299] });
+  assert.strictEqual(r.najbolji, 61, 'najviši dohvat 301 minus stojeći 240');
+  assert.strictEqual(skok.glavna(r), 61);
+
+  assert.strictEqual(skok.glavna({ osnovica: 240, pokusaji: [] }), null, 'bez pokušaja nema rezultata');
+  assert.strictEqual(skok.glavna({ pokusaji: [296] }), null,
+    'bez dohvata u stojećem stavu se ne sme izračunati visina skoka');
+
+  const kolone = skok.kolonePrikaz;
+  assert.deepStrictEqual(kolone, ['Rezultat', 'stojeći', '1', '2', '3']);
+  assert.strictEqual(skok.redPrikaz(r).length, kolone.length);
+});
+
+test('sprint nema osnovicu — upisuje se vreme, ne razlika', () => {
+  const sprint = T.vrsta('sprint-20');
+  assert.ok(!sprint.osnovica);
+  assert.strictEqual(sprint.nazivPokusaja, 'pokušaj');
+  assert.strictEqual(sprint.glavna({ pokusaji: [3.21, 3.09] }), 3.09);
 });

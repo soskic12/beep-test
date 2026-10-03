@@ -25,7 +25,7 @@ Pored beep testa, evidencija vodi i ostale testove koji se rade u košarci:
 | Grupa | Test | Meri se | Bolje je |
 |---|---|---|---|
 | Izdržljivost | Beep test | nivo.deonica | više |
-| Skok | Skok iz mesta, skok sa zaletom | cm, 3 pokušaja | više |
+| Skok | Skok iz mesta, skok sa zaletom | cm, 3 pokušaja (razlika dohvata) | više |
 | Brzina | Sprint 20 m, sprint 3/4 terena | s, 2–3 pokušaja | manje |
 | Agilnost | Lane agility, T-test, 505 | s, 2 pokušaja | manje |
 | Merenje | Visina, težina, raspon ruku, dohvat | cm i kg | — |
@@ -33,6 +33,10 @@ Pored beep testa, evidencija vodi i ostale testove koji se rade u košarci:
 Beep test ima svoj ekran testiranja (sat, signali, pločice). Ostali se unose posle merenja:
 izabere se test, pa se po igraču upišu pokušaji — najbolji se računa sam, i zna se da je kod
 sprinta i agilnosti **manji broj bolji**. Igrači kojima ništa nije upisano se ne čuvaju.
+
+Skok se meri **razlikom dohvata** (Sargent): trener upisuje dohvat u skoku, a dohvat u stojećem
+stavu se ponudi iz poslednje antropometrije i pamti se **uz sam rezultat** — da novo merenje tela
+ne bi naknadno promenilo stare skokove. Visinu skoka računa aplikacija.
 
 Kod testova koji se mere na vreme uz svako polje stoji **⏱ štoperica**: dugme *Kreni*, pa
 *Stani*, pa *Upiši*. Merenje rukom greši oko 0,2 s — na 20 m to je osetan deo rezultata, pa za
