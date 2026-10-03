@@ -244,3 +244,59 @@ test('premala grupa nema ni odnos prema proseku', () => {
   ]);
   assert.strictEqual(w.Uporedi.opisProseka(w.Uporedi.zaIgraca(igraci[0].id, 'beep')), '');
 });
+
+/* ---------- čime je mereno ---------- */
+
+test('rezultati mereni štopericom i foto-ćelijama se ne mešaju', () => {
+  const w = napraviProzor();
+  const igraci = [1, 2, 3, 4].map((i) =>
+    w.DB.dodajIgraca({ ime: 'Igrač ' + i, grupa: 'Kadeti' }));
+
+  /* troje mereno štopericom */
+  w.DB.sacuvajTest({
+    vrsta: 'sprint-20', naziv: 'Štoperica', merenje: 'ruka',
+    datum: new Date(Date.now() - 20 * 86400000).toISOString(),
+    rezultati: igraci.slice(0, 3).map((p, i) => ({
+      igracId: p.id, ime: p.ime, grupa: 'Kadeti', najbolji: 3.0 + i * 0.1
+    }))
+  });
+  /* četvrti mereno ćelijama, sporije vreme ali drugom opremom */
+  w.DB.sacuvajTest({
+    vrsta: 'sprint-20', naziv: 'Ćelije', merenje: 'celije',
+    datum: new Date(Date.now() - 10 * 86400000).toISOString(),
+    rezultati: [{ igracId: igraci[3].id, ime: igraci[3].ime, grupa: 'Kadeti', najbolji: 3.25 }]
+  });
+
+  const sStopericom = w.Uporedi.zaIgraca(igraci[0].id, 'sprint-20');
+  assert.strictEqual(sStopericom.od, 3, 'poredi se samo sa onima merenim štopericom');
+  assert.strictEqual(sStopericom.nacin.id, 'ruka');
+
+  const saCelijama = w.Uporedi.zaIgraca(igraci[3].id, 'sprint-20');
+  assert.strictEqual(saCelijama.od, 1, 'sam je u svojoj grupi merenja');
+  assert.strictEqual(saCelijama.nacin.id, 'celije');
+});
+
+test('beep test nema varijante merenja, pa se svi porede zajedno', () => {
+  const w = napraviProzor();
+  const igraci = ekipa(w, 'beep', [
+    { grupa: 'Kadeti', r: { ukupnoDeonica: 40 } },
+    { grupa: 'Kadeti', r: { ukupnoDeonica: 50 } },
+    { grupa: 'Kadeti', r: { ukupnoDeonica: 60 } }
+  ]);
+  const p = w.Uporedi.zaIgraca(igraci[0].id, 'beep');
+  assert.strictEqual(p.od, 3);
+  assert.deepStrictEqual(w.Testovi.vrsta('beep').nacini, ['protokol'],
+    'beep test ne zavisi od opreme — isti protokol svuda');
+});
+
+test('testiranje bez upisanog načina se računa kao podrazumevani', () => {
+  const w = napraviProzor();
+  const igraci = ekipa(w, 'sprint-20', [
+    { grupa: 'Kadeti', r: { najbolji: 3.1 } },
+    { grupa: 'Kadeti', r: { najbolji: 3.2 } },
+    { grupa: 'Kadeti', r: { najbolji: 3.3 } }
+  ]);
+  const p = w.Uporedi.zaIgraca(igraci[0].id, 'sprint-20');
+  assert.strictEqual(p.nacin.id, 'ruka', 'bez opreme je podrazumevano štoperica');
+  assert.strictEqual(p.od, 3, 'zatečena testiranja ne ispadaju iz poređenja');
+});

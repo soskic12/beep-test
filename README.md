@@ -130,6 +130,33 @@ broj deonica, pretrčane metre i vreme.
 
 Obe su procene, ne laboratorijsko merenje — vrede za praćenje istog igrača kroz vreme.
 
+## Norme i čime je mereno
+
+Uz svaki test se pamti **čime je meren** — štopericom ili foto-ćelijama, zidom ili mernom
+trakom. To nije sitnica: merenje rukom daje sistematski kraće vreme od elektronskog, pa se
+rezultati mereni različitom opremom **ne mešaju u istom poređenju**. Podrazumevan je uvek onaj
+način za koji ne treba oprema, jer aplikacija mora da radi i na seoskom terenu.
+
+Beep test je tu izuzetak i to u dobrom smislu: protokol je isti bez obzira na opremu, pa su
+rezultati uporedivi sa bilo kim ko ga je radio.
+
+### Spoljni izvori normi
+
+Aplikacija za sada **ne prikazuje percentile**, jer percentil bez uzorka iza sebe nije procena.
+Ovo su izvori koji postoje i koji bi se mogli uneti, sa onim što o njima treba znati:
+
+| Test | Izvor | Uzorak | Populacija | Čime je mereno |
+|---|---|---|---|---|
+| Beep test | Tomkinson i sar., *BJSM* 2017 | 1.142.026 | 9–17 g., opšta, 50 zemalja | protokol (bez opreme) |
+| Beep test, telesne mere | FitBack, Ortega i sar., *BJSM* 2023 | ~8 mil. | 6–18 g., 34 zemlje, i Srbija | protokol |
+| Sprint 20 m, T-test, skok | Ramos i sar., *Front. Sports Act. Living* 2021 | 281 | 12–16 g., portugalski košarkaši | foto-ćelije, Optojump |
+| Beep, sprint, skok, raspon | Aouichaoui i sar., *Children* 2024 (CC BY) | 469 | U13–U20, tuniski košarkaši | foto-ćelije, Optojump |
+
+Za **lane agility, 3/4 terena i 505** kod omladinaca nema upotrebljivih normi — postoji samo
+NBA combine, a to su odrasli profesionalci.
+
+Kad se norma unese, uz svaki percentil mora da stoji odakle je i na kome je merena.
+
 ## Podaci
 
 Sve stoji u `localStorage` pregledača na uređaju (ključ `beeptest.v1`), ništa ne odlazi na mrežu.

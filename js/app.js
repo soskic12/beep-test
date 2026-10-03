@@ -5,7 +5,7 @@
   var P = global.Protocol;
   /* Isti broj stoji i u sw.js (KES) - provera ih uporedjuje, da se ne
      razidju. Kad se objavi izmena, podize se na oba mesta. */
-  var VERZIJA = 'v8';
+  var VERZIJA = 'v9';
   var app = document.getElementById('app');
   var trakaEl = document.getElementById('traka');
 
@@ -417,7 +417,8 @@
     if (!p || p.od < 3) return '';
     return '<div class="poredjenje">' +
       '<b>' + p.rang + '. od ' + p.od + '</b> u grupi ' + esc(p.grupa || 'bez grupe') +
-      '<div class="slab">' + [esc(global.Uporedi.opisProseka(p)), 'poslednjih godinu dana']
+      '<div class="slab">' + [esc(global.Uporedi.opisProseka(p)), 'poslednjih godinu dana',
+        v.nacini.length > 1 ? 'mereno: ' + esc(p.nacin.naziv) : '']
         .filter(Boolean).join(' · ') + '</div>' +
       '</div>';
   }
@@ -1017,7 +1018,8 @@
       '<div class="zaglavlje"><button class="tiho" id="nazad">‹ Nazad</button><h1 class="skraceno">' +
       esc(t.naziv || v.naziv) + '</h1></div>' +
       '<div class="kartica slab">' +
-      [esc(v.naziv), fmtDatumVreme(t.datum), t.lokacija ? esc(t.lokacija) : '', rez.length + ' učesnika']
+      [esc(v.naziv), fmtDatumVreme(t.datum), t.lokacija ? esc(t.lokacija) : '', rez.length + ' učesnika',
+        v.nacini.length > 1 ? esc(global.Testovi.nacin(t.merenje || v.nacini[0]).naziv) : '']
         .filter(Boolean).join(' · ') +
       (t.beleska ? '<div style="margin-top:6px">' + esc(t.beleska) + '</div>' : '') + '</div>' +
       '<div class="kartica"><div class="uvijeno"><table class="tabela">' +
@@ -1124,6 +1126,11 @@
       '<label for="udatum">Datum</label><input id="udatum" type="date" value="' + danas() + '">' +
       '<label for="umesto">Mesto</label><input id="umesto" placeholder="npr. sala, teren">' +
       '<label for="ubeleska">Beleška</label><textarea id="ubeleska" placeholder="uslovi, oprema, sastav ekipe…"></textarea>' +
+      (v.nacini.length > 1 ? '<label for="unacin">Čime je mereno</label><select id="unacin">' +
+        v.nacini.map(function (n) {
+          var x = global.Testovi.nacin(n);
+          return '<option value="' + esc(x.id) + '">' + esc(x.naziv) + ' — ' + esc(x.opis) + '</option>';
+        }).join('') + '</select>' : '') +
       '</div>' +
       (grupe.length ? '<div class="kartica"><label for="ugrupa">Grupa</label><select id="ugrupa">' +
         '<option value="">— sve grupe —</option>' +
@@ -1328,6 +1335,7 @@
     var t = global.DB.sacuvajTest({
       vrsta: v.id,
       naziv: vrednost('#unaziv') || v.naziv,
+      merenje: vrednost('#unacin') || v.nacini[0],
       datum: new Date(datum + 'T' + new Date().toTimeString().slice(0, 8)).toISOString(),
       lokacija: vrednost('#umesto'),
       beleska: vrednost('#ubeleska'),
@@ -1353,7 +1361,8 @@
       '<div class="izvestaj">' +
       '<div class="kartica g-' + v.kljucGrupe + '">' +
       '<h2>' + esc(t.naziv || v.naziv) + '</h2>' +
-      '<div class="slab">' + [esc(v.naziv), fmtDatum(t.datum), t.lokacija ? esc(t.lokacija) : '']
+      '<div class="slab">' + [esc(v.naziv), fmtDatum(t.datum), t.lokacija ? esc(t.lokacija) : '',
+        v.nacini.length > 1 ? 'mereno: ' + esc(global.Testovi.nacin(t.merenje || v.nacini[0]).naziv) : '']
         .filter(Boolean).join(' · ') + '</div>' +
       (t.beleska ? '<div class="razmak">' + esc(t.beleska) + '</div>' : '') +
       '</div>' +

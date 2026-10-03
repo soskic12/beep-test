@@ -32,8 +32,20 @@
 
   /* ---------- zajednicko za testove sa pokusajima ---------- */
 
+  /* Nacini merenja. Prvi je podrazumevan - onaj za koji ne treba oprema,
+     jer aplikacija mora da radi i na seoskom terenu sa stopericom i zidom. */
+  var NACINI = {
+    ruka: { id: 'ruka', naziv: 'štoperica', opis: 'mereno rukom' },
+    celije: { id: 'celije', naziv: 'foto-ćelije', opis: 'elektronsko merenje' },
+    zid: { id: 'zid', naziv: 'zid i dohvat', opis: 'razlika dohvata, kreda ili traka' },
+    traka: { id: 'traka', naziv: 'merna traka', opis: 'Optojump, jump mat ili slično' },
+    protokol: { id: 'protokol', naziv: 'signal', opis: 'vodi aplikacija' },
+    pantljika: { id: 'pantljika', naziv: 'pantljika i vaga', opis: 'ručno merenje tela' }
+  };
+
   function saPokusajima(def) {
     def.unos = 'pokusaji';
+    if (!def.nacini) def.nacini = def.jedinica === 's' ? ['ruka', 'celije'] : ['zid', 'traka'];
     /* Osa grafikona govori istim jezikom kao rezultat. */
     def.osa = function (x) { return broj(x, def.decimala); };
     def.poredi = true;
@@ -80,6 +92,7 @@
 
   function saPoljima(def) {
     def.unos = 'polja';
+    if (!def.nacini) def.nacini = ['pantljika'];
     def.osa = function (x) { return broj(x, def.polja[0].decimala); };
     /* Merenje tela nema "najboljeg" - najvisi igrac nije najbolji rezultat. */
     def.poredi = false;
@@ -137,6 +150,9 @@
     opis: '20 m, 21 nivo, do 21:56 trčanja',
     unos: 'protokol',
     poredi: true,
+    /* Beep test ne zavisi od opreme: isti protokol na parketu i na seoskom
+       terenu, pa su i rezultati uporedivi sa bilo kim ko ga je radio. */
+    nacini: ['protokol'],
     jedinica: 'deonica',
     boljeJe: 'vise',
     decimala: 0,
@@ -294,8 +310,12 @@
     return v.boljeJe === 'manje' ? a < b : a > b;
   }
 
+  function nacin(id) { return NACINI[id] || NACINI.ruka; }
+
   global.Testovi = {
     vrsta: vrsta,
+    nacin: nacin,
+    NACINI: NACINI,
     sve: sve,
     poGrupama: poGrupama,
     bolji: bolji,

@@ -129,3 +129,17 @@ test('osa grafikona govori istim jezikom kao rezultat', () => {
     assert.strictEqual(typeof v.osa, 'function', 'svaki test mora da ume da ispiše osu: ' + v.id);
   });
 });
+
+test('svaki test zna čime se meri, i prvi način je onaj bez opreme', () => {
+  T.sve().forEach((v) => {
+    assert.ok(Array.isArray(v.nacini) && v.nacini.length, 'nema načina merenja: ' + v.id);
+    v.nacini.forEach((n) => {
+      assert.strictEqual(T.nacin(n).id, n, 'nepoznat način merenja „' + n + '" kod ' + v.id);
+    });
+  });
+  assert.deepStrictEqual(T.vrsta('sprint-20').nacini, ['ruka', 'celije'],
+    'sprint se može meriti i štopericom i ćelijama, štoperica je podrazumevana');
+  assert.deepStrictEqual(T.vrsta('skok-mesto').nacini, ['zid', 'traka']);
+  assert.deepStrictEqual(T.vrsta('beep').nacini, ['protokol'], 'beep ne zavisi od opreme');
+  assert.strictEqual(T.nacin('ruka').naziv, 'štoperica');
+});

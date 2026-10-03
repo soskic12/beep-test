@@ -24,6 +24,9 @@
     global.DB.testovi().forEach(function (t) {
       if ((t.vrsta || 'beep') !== vrstaId) return;
       if ((t.datum || '') < granica) return;
+      /* Stoperica i foto-celije ne daju isti broj za isto trcanje, pa se
+         rezultati merenja razlicitom opremom ne mesaju u istom poredjenju. */
+      if (o.nacin && (t.merenje || v.nacini[0]) !== o.nacin) return;
       (t.rezultati || []).forEach(function (r) {
         var vrednost = v.glavna(r);
         if (vrednost == null) return;
@@ -55,12 +58,23 @@
     return zbir / lista.length;
   }
 
+  /* Cime je poslednji put meren ovaj igrac u ovom testu. */
+  function nacinIgraca(igracId, vrstaId) {
+    var v = global.Testovi.vrsta(vrstaId);
+    var svi = global.DB.rezultatiIgraca(igracId, vrstaId);
+    if (!svi.length) return v.nacini[0];
+    var t = global.DB.test(svi[svi.length - 1].testId);
+    return (t && t.merenje) || v.nacini[0];
+  }
+
   /* Gde stoji jedan igrac u svojoj grupi, po jednoj vrsti testa. */
   function zaIgraca(igracId, vrstaId, opcije) {
     var o = opcije || {};
     var igrac = global.DB.igrac(igracId);
     var grupa = o.grupa != null ? o.grupa : (igrac ? igrac.grupa : '');
-    var lista = skup(vrstaId, { grupa: grupa || null, meseci: o.meseci });
+    /* poredi se sa onima koji su mereni na isti nacin kao i on */
+    var mojNacin = o.nacin || nacinIgraca(igracId, vrstaId);
+    var lista = skup(vrstaId, { grupa: grupa || null, meseci: o.meseci, nacin: mojNacin });
 
     var mesto = -1;
     for (var i = 0; i < lista.length; i++) {
@@ -83,7 +97,8 @@
       /* koliko je iznad ili ispod proseka, u jedinici testa i u odnosu na smer */
       odstupanje: sredina == null ? null : moj - sredina,
       boljiOdProseka: sredina == null ? null : global.Testovi.bolji(v, moj, sredina),
-      najbolji: lista.length ? lista[0] : null
+      najbolji: lista.length ? lista[0] : null,
+      nacin: global.Testovi.nacin(mojNacin)
     };
   }
 
@@ -175,6 +190,7 @@
     skup: skup,
     prosek: prosek,
     zaIgraca: zaIgraca,
+    nacinIgraca: nacinIgraca,
     opis: opis,
     opisProseka: opisProseka,
     napredak: napredak,
