@@ -123,6 +123,33 @@ broju koraka i smeru okreta, a to je kod protokola greška a ne sitnica),
 procena zrelosti i rasta (PHV) iz podataka koji se već skupljaju, i pakovanje
 u Play Store (TWA) i App Store.
 
+## Povratak na novu mašinu
+
+Merodavan je **GitHub**, ne nijedna lokalna ni eksterna kopija — one su po
+pravilu starije. Povratak je jedna naredba i ne traži ništa osim Node-a:
+
+```bash
+git clone https://github.com/soskic12/beep-test.git
+cd beep-test
+node --test test/*.test.js      # mora: 108 provera, 0 padova
+```
+
+Ako sve prolazi, povratak je uspeo — nema šta drugo da se podešava, nema
+zavisnosti ni koraka prevođenja.
+
+**Ne prepisivati klon starom radnom kopijom.** Ako se ipak kreće od eksterne
+kopije, prvo proveriti dokle je stigla i dovući ostalo:
+
+```bash
+git log --oneline -1            # uporediti sa stanjem na GitHub-u
+git pull origin main
+```
+
+Dve stvari koje ne zavise od ove mašine: **aplikacija na telefonima i dalje
+radi** (objavljena je na Cloudflare-u i ne diže se sa računara), a **evidencija
+trenera stoji u pregledaču telefona** — nju ne čuva ni GitHub ni eksterni disk,
+nego samo *Podešavanja → Izvoz (JSON)*.
+
 ## Kako se radi na projektu
 
 ```bash
